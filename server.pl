@@ -17,10 +17,6 @@ bind(SERVER, sockaddr_in($port, INADDR_ANY))
 
 listen(SERVER, SOMAXCONN);
 
-sub handle_request {
-    
-}
-
 for (;;) {
     my $paddr = accept(CLIENT, SERVER);
 

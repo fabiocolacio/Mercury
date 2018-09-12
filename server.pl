@@ -1,11 +1,12 @@
 #!/bin/perl -w
 
 use strict;
-use IO::Socket;
-use Socket;
 
+use IO::Socket;
+use IO::Socket::SSL;
+
+my $port = shift || 8080;
 my $host = "0.0.0.0";
-my $port = 8080;
 my $proto = "tcp";
 my $backlog = 5;
 
@@ -14,22 +15,9 @@ my $server = new IO::Socket::INET(
     LocalPort => $port,
     Proto     => $proto,
     Listen    => $backlog
-) or die "server: $!";
-
-
-# socket(SERVER, PF_INET, SOCK_STREAM, $proto)
-#     or die "socket: $!";
-# 
-# setsockopt(SERVER, SOL_SOCKET, SO_REUSEADDR, pack("l", 1))
-#     or die "setsockopt: $!";
-# 
-# bind(SERVER, sockaddr_in($port, INADDR_ANY))
-#     or die "bind: $!";
-# 
-# listen(SERVER, SOMAXCONN);
+) or die "Failed to bind socket: $!";
 
 for (;;) {
-    # my $paddr = accept(CLIENT, SERVER);
     my $client = $server->accept;
 
     my $message = "";

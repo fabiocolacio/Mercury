@@ -1,30 +1,36 @@
 #!/bin/perl -w
 
 use strict;
-
 use threads;
-
 use IO::Socket;
 use IO::Socket::SSL;
 
-$0 = "chatter-server";
-$| = 1;
+#== Global Declarations ==#
 
-$SIG{INT} = \&clean_exit;
+$0 = "chatter-server";    # Set the program name
+$| = 1;                   # Set flush-on-write on
+$SIG{INT} = \&clean_exit; # Exit program on sig-int (Ctrl-C)
 
-my $port = shift || 8080;
-my $host = "0.0.0.0";
-my $proto = "tcp";
-my $backlog = 5;
+my $http_port = 8080;     # Port for http connections
+my $https_port = 8090;    # Port for https connections
+my $host = "0.0.0.0";     # Bind to all devices
+my $proto = "tcp";        # Use TCP protocol
+my $backlog = 5;          # Size of queue for pending requests
+my $http_server;          # Host HTTP server socket
+my $https_server;         # Host HTTPS server socket
 
-my $max_thread_count = shift || 200;
+my $use_ssl = 0;          # Set to 0 to disable SSL (for debugging purposes only!)
+my $ssl_cert_file;        # Path to an SSL certificate file
+my $ssl_key_file;         # Path to an SSL key file
 
-my $log_file = "$0.log";
-my $log_handle;
+my $active :shared = 1;   # If active is 0, the servers will stop accepting connections
 
-my $active :shared = 1;
+my $max_threads = 200;    # Maximum size of thread pool for handling requests
 
-my $server;
+my $log_file = "$0.log";  # Name of log file that will be created
+my $log_handle;           # File handle for the log file
+
+#== Subroutines ==#
 
 sub log_message {
     if (defined($log_handle)) {
@@ -41,7 +47,8 @@ sub clean_exit {
 
         log_message "Shutting down server..";
         $active = 0;
-        $server->close;
+        $http_server->close;
+        $https_server->close if ($use_ssl);
 
         my @threads = threads->list(threads::all);
         if (scalar @threads > 0) {
@@ -93,22 +100,33 @@ sub handle_client {
     log_message "$peerhost => connection closed";
 }
 
+#== Program Logic ==#
+
 open $log_handle, ">", $log_file
     or warn "Failed to open file '$log_file': $!";
 
-$server = new IO::Socket::INET(
+$http_server = new IO::Socket::INET(
     LocalHost => $host,
-    LocalPort => $port,
+    LocalPort => $http_port,
     Proto     => $proto,
     Listen    => $backlog)
     or die "Failed to bind socket: $!";
 
-log_message "$0 listening on port $port";
+$https_server = new IO::Socket::SSL(
+    LocalAddr     => $host,
+    LocalPort     => $https_port,
+    Listen        => $backlog,
+    SSL_cert_file => $ssl_cert_file,
+    SSL_key_file  => $ssl_key_file)
+    or die "Failed to bind SSL socket: $!"
+    if ($use_ssl); 
+
+log_message "$0 listening on port $http_port";
 
 for (;;) {
     my $thread_count = threads->list(threads::running);
-    if ($active && $thread_count < $max_thread_count) {
-        my $client = $server->accept;
+    if ($active && $thread_count < $max_threads) {
+        my $client = $http_server->accept;
         threads->new(\&handle_client, $client);
     }
 }

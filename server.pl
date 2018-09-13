@@ -10,6 +10,7 @@ use IO::Socket::SSL;
 $0 = "chatter-server";    # Set the program name
 $| = 1;                   # Set flush-on-write on
 $SIG{INT} = \&clean_exit; # Exit program on sig-int (Ctrl-C)
+$SIG{CHLD} = 'IGNORE';    # Keep the process table clean, ignore dead child processes
 
 my $http_port = 8080;     # Port for http connections
 my $https_port = 8090;    # Port for https connections
@@ -23,9 +24,8 @@ my $use_ssl = 0;          # Set to 0 to disable SSL (for debugging purposes only
 my $ssl_cert_file;        # Path to an SSL certificate file
 my $ssl_key_file;         # Path to an SSL key file
 
-my $active :shared = 1;   # If active is 0, the servers will stop accepting connections
-
-my $max_threads = 200;    # Maximum size of thread pool for handling requests
+my $num_processes = 1;    # Total number of processes
+my $max_processes = 200;  # Maximum number of processes to use
 
 my $log_file = "$0.log";  # Name of log file that will be created
 my $log_handle;           # File handle for the log file
@@ -46,18 +46,8 @@ sub clean_exit {
         my $timestamp = localtime;
 
         log_message "Shutting down server..";
-        $active = 0;
         $http_server->close;
         $https_server->close if ($use_ssl);
-
-        my @threads = threads->list(threads::all);
-        if (scalar @threads > 0) {
-            $timestamp = localtime;
-            log_message "Fulfilling unresolved requests...";
-            foreach my $thread (@threads) {
-                $thread->join;
-            }
-        }
 
         close $log_handle;
 
@@ -94,8 +84,6 @@ sub handle_client {
             </body>
         </html>");
 
-    close($client);
-
     $timestamp = localtime;
     log_message "$peerhost => connection closed";
 }
@@ -124,10 +112,25 @@ $https_server = new IO::Socket::SSL(
 log_message "$0 listening on port $http_port";
 
 for (;;) {
-    my $thread_count = threads->list(threads::running);
-    if ($active && $thread_count < $max_threads) {
+    if ($num_processes < $max_processes) {
         my $client = $http_server->accept;
-        threads->new(\&handle_client, $client);
+
+        my $pid = fork;
+        if (defined $pid) {
+            $num_processes += 1;
+
+            if ($pid == 0) {
+                handle_client $client;
+                close $client;
+                exit;
+            }
+        }
+        else {
+            log_message "Failed to create child process.";
+        }
+    }
+    else {
+        log_message "Unable to accept clients. Max process count reached.";
     }
 }
 

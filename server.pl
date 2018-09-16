@@ -1,7 +1,6 @@
 #!/bin/perl -w
 
 use strict;
-use threads;
 use IO::Socket;
 use IO::Socket::SSL;
 
@@ -9,6 +8,7 @@ use IO::Socket::SSL;
 
 $0 = "chatter-server";    # Set the program name
 $| = 1;                   # Set flush-on-write on
+
 $SIG{INT} = \&clean_exit; # Exit program on sig-int (Ctrl-C)
 $SIG{CHLD} = 'IGNORE';    # Keep the process table clean, ignore dead child processes
 

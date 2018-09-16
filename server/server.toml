@@ -1,0 +1,6 @@
+
+HttpAddr = "0.0.0.0:8080"
+HttpsAddr = "0.0.0.0:9090"
+CertFile = "server.crt"
+KeyFile = "server.key"
+

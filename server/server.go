@@ -8,7 +8,6 @@ import(
 )
 
 type serverConf struct {
-    HttpAddr  string
     HttpsAddr string
     CertFile  string
     KeyFile   string
@@ -33,24 +32,15 @@ func main() {
     }
 
     fmt.Println("Starting server with the following configuration:")
-    fmt.Printf("HTTP Address: %s\n", conf.HttpAddr)
     fmt.Printf("HTTPS Address: %s\n", conf.HttpsAddr)
     fmt.Printf("Cert File: %s\n", conf.CertFile)
     fmt.Printf("Key File: %s\n", conf.KeyFile)
 
     http.HandleFunc("/", httpHandler)
 
-    ch := make(chan error)
+    err := http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, nil)
 
-    go func() {
-        ch <- http.ListenAndServe(conf.HttpAddr, nil)
-    }()
-
-    go func() {
-        ch <- http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, nil)
-    }()
-
-    if err := <-ch; err != nil {
+    if err != nil {
         fmt.Println(err)
     }
 
@@ -63,10 +53,6 @@ func readConf(path string) (conf serverConf,err error) {
 }
 
 func httpHandler(res http.ResponseWriter, req *http.Request) {
-    if req.TLS == nil {
-        // TODO: Redirect to a secure connection
-    }
-
     res.Write([]byte("<h1>Hi There!</h1>"))
 }
 

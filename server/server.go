@@ -1,6 +1,7 @@
 package main
 
 import(
+    "os"
     "fmt"
     "net/http"
     "github.com/BurntSushi/toml"
@@ -14,11 +15,21 @@ type serverConf struct {
 }
 
 func main() {
-    confPath := "server.toml"
-    conf, err := readConf(confPath)
+    var conf serverConf
 
-    if err != nil {
-        fmt.Printf("Failed to load configuration file '%s': %s", confPath, err)
+    if args := os.Args[1:]; len(args) > 0 {
+        confPath := args[0]
+
+        var err error
+        conf, err = readConf(confPath)
+
+        if err != nil {
+            fmt.Printf("Failed to load configuration file '%s': %s\n", confPath, err)
+            return
+        }
+    } else {
+        fmt.Println("No configuration file specified.")
+        return
     }
 
     fmt.Println("Starting server with the following configuration:")

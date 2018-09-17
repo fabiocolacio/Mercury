@@ -3,6 +3,7 @@ package main
 import(
     "os"
     "fmt"
+    "strings"
     "net/http"
     "github.com/BurntSushi/toml"
 )
@@ -45,7 +46,7 @@ func main() {
     }()
 
     go func () {
-        ch <-http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, http.HandlerFunc(httpsHandler))
+        ch <- http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, http.HandlerFunc(httpsHandler))
     }()
 
     if err := <-ch; err != nil {
@@ -61,7 +62,17 @@ func readConf(path string) (conf serverConf,err error) {
 }
 
 func httpHandler(res http.ResponseWriter, req *http.Request) {
-    res.Write([]byte("<h1>Hi There!</h1>"))
+    // TODO: Use the port from the configuration rather than assuming 443
+
+    port := 443
+    host := strings.Split(req.Host, ":")[0]
+    path := req.URL.Path
+
+    dest := fmt.Sprintf("https://%s:%d%s", host, port, path)
+
+    fmt.Println(dest)
+
+    http.Redirect(res, req, dest, http.StatusTemporaryRedirect)
 }
 
 func httpsHandler(res http.ResponseWriter, req *http.Request) {

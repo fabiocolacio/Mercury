@@ -1,4 +1,9 @@
+# Addresses are followed by the port to listen on
+# '0.0.0.0' addresses will bind to all interfaces
 HttpAddr = "0.0.0.0:80"
 HttpsAddr = "0.0.0.0:443"
+
+# Replace "server.crt" and "server.key" with the absolute paths
+# to your SSL certificate and key respectively
 CertFile = "server.crt"
 KeyFile = "server.key"

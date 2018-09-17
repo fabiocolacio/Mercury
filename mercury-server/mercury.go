@@ -8,6 +8,7 @@ import(
 )
 
 type serverConf struct {
+    HttpAddr  string
     HttpsAddr string
     CertFile  string
     KeyFile   string
@@ -32,15 +33,24 @@ func main() {
     }
 
     fmt.Println("Starting server with the following configuration:")
+    fmt.Printf("HTTP Address: %s\n", conf.HttpAddr)
     fmt.Printf("HTTPS Address: %s\n", conf.HttpsAddr)
     fmt.Printf("Cert File: %s\n", conf.CertFile)
     fmt.Printf("Key File: %s\n", conf.KeyFile)
 
     http.HandleFunc("/", httpHandler)
 
-    err := http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, nil)
+    ch := make(chan error)
 
-    if err != nil {
+    go func () {
+        ch <- http.ListenAndServe(conf.HttpAddr, nil)
+    }()
+
+    go func () {
+        ch <-http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, nil)
+    }()
+
+    if err := <-ch; err != nil {
         fmt.Println(err)
     }
 

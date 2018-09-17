@@ -1,2 +1,4 @@
-# encrypted-chat
-An end-to-end encrypted chat service for my Computer Security course.
+# Mercury
+
+An end-to-end encrypted chat service.
+

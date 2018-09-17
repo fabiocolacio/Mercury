@@ -38,16 +38,14 @@ func main() {
     fmt.Printf("Cert File: %s\n", conf.CertFile)
     fmt.Printf("Key File: %s\n", conf.KeyFile)
 
-    http.HandleFunc("/", httpHandler)
-
     ch := make(chan error)
 
     go func () {
-        ch <- http.ListenAndServe(conf.HttpAddr, nil)
+        ch <- http.ListenAndServe(conf.HttpAddr, http.HandlerFunc(httpHandler))
     }()
 
     go func () {
-        ch <-http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, nil)
+        ch <-http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, http.HandlerFunc(httpsHandler))
     }()
 
     if err := <-ch; err != nil {
@@ -63,6 +61,10 @@ func readConf(path string) (conf serverConf,err error) {
 }
 
 func httpHandler(res http.ResponseWriter, req *http.Request) {
+    res.Write([]byte("<h1>Hi There!</h1>"))
+}
+
+func httpsHandler(res http.ResponseWriter, req *http.Request) {
     res.Write([]byte("<h1>Hi There!</h1>"))
 }
 

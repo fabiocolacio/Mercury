@@ -11,7 +11,7 @@ Then, you can compile and install the server binary with:
 ```sh
 # Set $GOPATH, where the source and executable will be stored.
 # This can be substituted with any directory of your choosing.
-mkdir ~/go && export GOPATH=~/go
+export GOPATH=~/go && mkdir $GOPATH
 
 # Download and compile the mercury-server source code into your $GOPATH.
 go get github.com/fabiocolacio/mercury/mercury-server

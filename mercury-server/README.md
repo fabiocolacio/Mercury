@@ -9,10 +9,11 @@ First, [install golang](https://golang.org/dl/).
 Then, you can compile and install the server binary with:
 
 ```sh
-# Set $GOPATH, where the source and executable will be stored
+# Set $GOPATH, where the source and executable will be stored.
+# This can be substituted with any directory of your choosing.
 mkdir ~/go && export GOPATH=~/go
 
-# Download and compile the mercury-server source code into your $GOPATH
+# Download and compile the mercury-server source code into your $GOPATH.
 go get github.com/fabiocolacio/mercury/mercury-server
 
 # Move the executable into the secure_path, so you can more easily

@@ -13,4 +13,4 @@ An end-to-end encrypted chat service.
 
 This program is named after the [Roman God](https://en.wikipedia.org/wiki/Mercury_(mythology)) of messages and communication!
 
-Evidently, he is also the patron god of thieves, so perhaps it's not the best name for a secure, end-to-end encrypted messaging platform 🤔
+Evidently, he is also the patron god of thieves, so perhaps it's not the best name for a secure, end-to-end encrypted messaging platform...

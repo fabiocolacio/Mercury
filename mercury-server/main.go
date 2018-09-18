@@ -9,6 +9,7 @@ import(
 
 func main() {
     var server mercury.Server
+    var err error
 
     // Load the configuration file.
     // If the user provides one as a cli argument, this is the one that is used.
@@ -16,10 +17,9 @@ func main() {
     // If no configuration file could be successfully loaded, mercury-server exits
     if args := os.Args[1:]; len(args) > 0 {
         confPath := args[0]
-        var err error
         server, err = mercury.NewServer(confPath)
         mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", confPath, err)
-    } else if _, err := os.Stat(systemConf()); err == nil {
+    } else if _, err = os.Stat(systemConf()); err == nil {
         server, err = mercury.NewServer(systemConf())
         mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", systemConf(), err)
     } else {
@@ -27,7 +27,7 @@ func main() {
     }
 
     // Start the server, logging errors to stdout
-    err := server.ListenAndServe()
+    err = server.ListenAndServe()
     mercury.Assert(err != nil, err)
 }
 

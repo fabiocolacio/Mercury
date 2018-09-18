@@ -3,6 +3,7 @@ package main
 import(
     "os"
     "fmt"
+    "log"
     "github.com/fabiocolacio/mercury"
 )
 
@@ -16,26 +17,18 @@ func main() {
     if args := os.Args[1:]; len(args) > 0 {
         confPath := args[0]
         var err error
-        if server, err = mercury.NewServer(confPath); err != nil {
-            fmt.Printf("Failed to load configuration file '%s': %s\n", confPath, err)
-            return
-        }
+        server, err = mercury.NewServer(confPath)
+        mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", confPath, err)
     } else if _, err := os.Stat(systemConf()); err == nil {
-        fmt.Println("No configuration file specified.")
-        fmt.Printf("Falling back to %s\n", systemConf())
-        if server, err = mercury.NewServer(systemConf()); err != nil {
-            fmt.Printf("Failed to load configuration file '%s': %s\n", systemConf(), err)
-            return
-        }
+        server, err = mercury.NewServer(systemConf())
+        mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", systemConf(), err)
     } else {
-        fmt.Println("No configuration file found in ~/.config/mercury, and none specified")
-        return
+        log.Fatalf("No config was specified, and file '%s' was not found.", systemConf())
     }
 
     // Start the server, logging errors to stdout
-    if err := server.ListenAndServe(); err != nil {
-        fmt.Println(err)
-    }
+    err := server.ListenAndServe()
+    mercury.Assert(err != nil, err)
 }
 
 // The default location of mercury-server's configuration file.

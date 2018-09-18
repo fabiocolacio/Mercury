@@ -2,6 +2,7 @@ package mercury
 
 import(
     "fmt"
+    "log"
     "net/http"
     "strings"
     "github.com/BurntSushi/toml"
@@ -39,6 +40,13 @@ func NewServer(confPath string) (Server, error) {
 func LoadConfig(confPath string) (Config, error){
     var conf Config
     _, err := toml.DecodeFile(confPath, &conf)
+
+    if err == nil {
+        log.Printf("Loaded configuration file '%s' successfully.", confPath)
+    } else {
+        log.Printf("Failed to load file '%s': %s", confPath, err)
+    }
+
     return conf, err
 }
 
@@ -57,6 +65,9 @@ func (serv Server) ListenAndServe() error {
     conf := serv.config
     e := make(chan error)
 
+    log.Printf("Listening to HTTP requests on %s", conf.HttpAddr)
+    log.Printf("Listening to HTTPS requests on %s", conf.HttpsAddr)
+
     // HTTP and TLS servers are bound to the socket addresses defined in the
     // Config structure, and respond to requests concurrently.
     // The responses are generated in the ServeHTTP function below.
@@ -70,7 +81,13 @@ func (serv Server) ListenAndServe() error {
     // Block execution until one of the functions returns with a critical error.
     // This may fail if you are trying to bind to a port that is in use, or if
     // you do not have proper permissions to bind to that port.
-    return <-e
+    err := <-e
+
+    if err != nil {
+        log.Println(err)
+    }
+
+    return err
 }
 
 // ServeHTTP generates an HTTP response to an HTTP request. See the go
@@ -82,10 +99,13 @@ func (serv Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
         port := strings.Split(serv.config.HttpsAddr, ":")[1]
         path := req.URL.Path
         dest := fmt.Sprintf("https://%s:%s%s", host, port, path)
+
+        log.Printf("Redirecting HTTP client '%s' to %s", req.RemoteAddr, dest)
         http.Redirect(res, req, dest, http.StatusTemporaryRedirect)
         return
     }
 
+    log.Printf("Handling client '%s'", req.RemoteAddr)
     res.Write([]byte("<h1>Hello World!</h1>"))
 }
 

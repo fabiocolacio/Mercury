@@ -18,10 +18,10 @@ func main() {
     if args := os.Args[1:]; len(args) > 0 {
         confPath := args[0]
         server, err = mercury.NewServer(confPath)
-        mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", confPath, err)
+        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
     } else if _, err = os.Stat(systemConf()); err == nil {
         server, err = mercury.NewServer(systemConf())
-        mercury.Assertf(err != nil, "Failed to load configuration file '%s': %s", systemConf(), err)
+        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", systemConf(), err)
     } else {
         log.Fatalf("No config was specified, and file '%s' was not found.", systemConf())
     }

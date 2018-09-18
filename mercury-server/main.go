@@ -6,27 +6,28 @@ import(
     "github.com/fabiocolacio/mercury"
 )
 
+// The default location of mercury-server's configuration file.
+// This file will be the fallback if no file was specified.
 const systemConf string = "~/.config/mercury/server.toml"
 
 func main() {
     var server mercury.Server
 
+    // Load the configuration file.
+    // If the user provides one as a cli argument, this is the one that is used.
+    // If no path was provided, mercury-server looks for the file ~/.config/mercury/server.toml
+    // If no configuration file could be successfully loaded, mercury-server exits
     if args := os.Args[1:]; len(args) > 0 {
         confPath := args[0]
-
         var err error
-        server, err = mercury.NewServer(confPath)
-
-        if err != nil {
+        if server, err = mercury.NewServer(confPath); err != nil {
             fmt.Printf("Failed to load configuration file '%s': %s\n", confPath, err)
             return
         }
     } else if _, err := os.Stat(systemConf); err == nil {
         fmt.Println("No configuration file specified.")
         fmt.Printf("Falling back to %s\n", systemConf)
-        server, err = mercury.NewServer(systemConf)
-
-        if err != nil {
+        if server, err = mercury.NewServer(systemConf); err != nil {
             fmt.Printf("Failed to load configuration file '%s': %s\n", systemConf, err)
             return
         }
@@ -35,12 +36,9 @@ func main() {
         return
     }
 
-    err := server.ListenAndServe()
-
-    if err != nil {
+    // Start the server, logging errors to stdout
+    if err := server.ListenAndServe(); err != nil {
         fmt.Println(err)
     }
-
-    fmt.Println("Closing Server...")
 }
 

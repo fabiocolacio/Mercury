@@ -6,6 +6,8 @@ import(
     "github.com/fabiocolacio/mercury"
 )
 
+const systemConf string = "~/.config/mercury/server.toml"
+
 func main() {
     var server mercury.Server
 
@@ -19,8 +21,17 @@ func main() {
             fmt.Printf("Failed to load configuration file '%s': %s\n", confPath, err)
             return
         }
-    } else {
+    } else if _, err := os.Stat(systemConf); err == nil {
         fmt.Println("No configuration file specified.")
+        fmt.Printf("Falling back to %s\n", systemConf)
+        server, err = mercury.NewServer(systemConf)
+
+        if err != nil {
+            fmt.Printf("Failed to load configuration file '%s': %s\n", systemConf, err)
+            return
+        }
+    } else {
+        fmt.Println("No configuration file found in ~/.config/mercury, and none specified")
         return
     }
 

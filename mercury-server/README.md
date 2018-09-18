@@ -4,18 +4,21 @@ This is the Mercury's chat server.
 
 ## Installing
 
-If you have Go installed, navigate your terminal to this directory (``mercury-server``) then run:
+First follow the instructions [in the wiki](https://github.com/fabiocolacio/Mercury/wiki/Setting-Up-The-Build-Environment) to setup your build environment.
+
+Next, navigate to the ``mercury-server`` directory, and install the server:
 
 ```
-$ go build
+$ cd $GOPATH/src/github.com/fabiocolacio/mercury/mercury-server
+$ go install
 ```
 
-The executable ``mercury-server`` will be produced in the current working directory.
+The source will be compiled, and the executable will be placed in ``$GOPATH/bin``. If you followed the instructions in the wiki, the binary will already be in your ``$PATH``.
 
-You can move the executable anywhere you please. To move it to the ``$PATH`` type:
+You are free to move the executable as you please. For example, if you would like to install it to ``/usr/local/bin``, you could issue the command:
 
 ```
-$ sudo mv mercury-server /usr/local/bin
+$ sudo mv $GOPATH/bin/mercury-server /usr/local/bin
 ```
 
 ## Configuration

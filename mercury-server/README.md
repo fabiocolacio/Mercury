@@ -13,9 +13,9 @@ $ cd $GOPATH/src/github.com/fabiocolacio/mercury/mercury-server
 $ go install
 ```
 
-The source will be compiled, and the executable will be placed in ``$GOPATH/bin``. If you followed the instructions in the wiki, the binary will already be in your ``$PATH``.
+The source will be compiled, and the executable will be placed in ``$GOPATH/bin``. If you followed the instructions in the wiki, the binary will already be in your ``$PATH``. You are free to move the executable as you please.
 
-You are free to move the executable as you please. For example, if you would like to install it to ``/usr/local/bin``, you could issue the command:
+If you plan to run this command with ``sudo``, you may want to move the executable to the system's ``secure_path`` (you will have to do this if you plan to run the server on restricted ports 80 and 443):
 
 ```
 $ sudo mv $GOPATH/bin/mercury-server /usr/local/bin

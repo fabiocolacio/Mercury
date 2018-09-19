@@ -2,10 +2,13 @@ package main
 
 import(
     "os"
-    "fmt"
     "log"
     "github.com/fabiocolacio/mercury"
 )
+
+// The default location of mercury-server's configuration file.
+// This file will be the fallback if no file was specified.
+const systemConf string = "/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml"
 
 func main() {
     var server mercury.Server
@@ -19,21 +22,15 @@ func main() {
         confPath := args[0]
         server, err = mercury.NewServer(confPath)
         mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
-    } else if _, err = os.Stat(systemConf()); err == nil {
-        server, err = mercury.NewServer(systemConf())
-        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", systemConf(), err)
+    } else if _, err = os.Stat(systemConf); err == nil {
+        server, err = mercury.NewServer(systemConf)
+        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", systemConf, err)
     } else {
-        log.Fatalf("No config was specified, and file '%s' was not found.", systemConf())
+        log.Fatalf("No config was specified, and file '%s' was not found.", systemConf)
     }
 
     // Start the server, logging errors to stdout
     err = server.ListenAndServe()
     mercury.Assert(err != nil, err)
-}
-
-// The default location of mercury-server's configuration file.
-// This file will be the fallback if no file was specified.
-func systemConf() string {
-    return fmt.Sprintf("%s/.config/mercury/server.toml", mercury.HomeDir())
 }
 

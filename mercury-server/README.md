@@ -14,11 +14,15 @@ Then, you can compile and install the server binary with:
 export GOPATH=~/go && mkdir $GOPATH
 
 # Download and compile the mercury-server source code into your $GOPATH.
+# The binary can be found in $GOPATH/bin, and can be moved as you see fit.
 go get github.com/fabiocolacio/mercury/mercury-server
 
-# Move the executable into the secure_path, so you can more easily
-# run the server with sudo (useful for binding to restricted ports 80 and 443).
-sudo mv $GOPATH/bin/mercury-server /usr/local/bin
+# Optionally, you can run the install script, which affords you a few benefits:
+# - Installs the binary to the secure_path in /usr/local/bin
+# - Optionally creates a systemd/launchd service
+# - Interactively creates a config file for you
+cd $GOPATH/src/github.com/fabiocolacio/mercury/mercury-server
+sudo sh install.sh
 ```
 
 ## Configuration

@@ -1,6 +1,6 @@
 # Mercury Server
 
-This is the Mercury's chat server.
+This is the Mercury chat server.
 
 ## Installing
 

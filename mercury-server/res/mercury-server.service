@@ -1,0 +1,10 @@
+[Unit]
+Description=Mercury Chat Server
+
+[Service]
+ExecStart=/usr/local/bin/mercury-server /usr/local/share/com.github.fabiocolacio.mercury-server/config.toml
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

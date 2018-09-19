@@ -41,13 +41,13 @@ In order to run the server, you must first write a configuration file in the ``t
   * The absolute path to your server's private key.
   * For information about acquiring a key, see [the wiki](https://github.com/fabiocolacio/Mercury/wiki/Acquiring-an-SSL-Certificate).
 
-You should save your configuration file to ``~/.config/mercury/server.toml``.
+You should save your configuration file to ``/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml``.
 
 A sample configuration file, ``sample-server.toml``, can be found in this directory.
 
 ## Usage
 
-If you placed your ``server.toml`` file in ``~/.config/mercury``, you can run the server by issuing the command:
+If you placed your ``config.toml`` file in ``/usr/local/share/com.github.fabiocolacio.mercury-server/``, you can run the server by issuing the command:
 
 ```
 $ mercury-server
@@ -56,5 +56,5 @@ $ mercury-server
 To run the server with a different configuration file, run:
 
 ```
-$ mercury-server ~/path/to/configuration/file/server.toml
+$ mercury-server ~/path/to/configuration/file/config.toml
 ```

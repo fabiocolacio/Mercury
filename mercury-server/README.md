@@ -56,5 +56,5 @@ $ mercury-server
 To run the server with a different configuration file, run:
 
 ```
-$ mercury-server ~/path/to/configuration/file/config.toml
+$ mercury-server -c ~/path/to/configuration/file/config.toml
 ```

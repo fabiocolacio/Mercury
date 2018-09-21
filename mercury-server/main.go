@@ -1,33 +1,24 @@
 package main
 
 import(
-    "os"
-    "log"
+    "flag"
     "github.com/fabiocolacio/mercury"
 )
 
-// The default location of mercury-server's configuration file.
-// This file will be the fallback if no file was specified.
-const systemConf string = "/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml"
+var confPath string
+
+func init() {
+    flag.StringVar(&confPath, "c",
+        "/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml",
+        "The configuration file to load.")
+    flag.Parse()
+}
 
 func main() {
-    var server mercury.Server
-    var err error
-
-    // Load the configuration file.
-    // If the user provides one as a cli argument, this is the one that is used.
-    // If no path was provided, mercury-server looks for the file ~/.config/mercury/server.toml
-    // If no configuration file could be successfully loaded, mercury-server exits
-    if args := os.Args[1:]; len(args) > 0 {
-        confPath := args[0]
-        server, err = mercury.NewServer(confPath)
-        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
-    } else if _, err = os.Stat(systemConf); err == nil {
-        server, err = mercury.NewServer(systemConf)
-        mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", systemConf, err)
-    } else {
-        log.Fatalf("No config was specified, and file '%s' was not found.", systemConf)
-    }
+    // Creates a new server with the details from the configuration file.
+    // If there was an error loading the file, the program quits.
+    server, err := mercury.NewServer(confPath)
+    mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
 
     // Start the server, logging errors to stdout
     err = server.ListenAndServe()

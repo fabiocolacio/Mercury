@@ -47,7 +47,7 @@ In order to run the server, you must first write a configuration file in the ``t
 
 You should save your configuration file to ``/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml``.
 
-A sample configuration file, ``sample-server.toml``, can be found in this directory.
+A sample configuration file, ``sample-server.toml``, can be found in the ``res`` directory.
 
 ## Usage
 

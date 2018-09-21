@@ -1,7 +1,6 @@
 package mercury
 
 import(
-    "log"
     "github.com/BurntSushi/toml"
 )
 
@@ -11,6 +10,7 @@ type Config struct {
     HttpsAddr string
     CertFile  string
     KeyFile   string
+    LogFile   string
 }
 
 // LoadConfig loads a toml-formatted configuration file at the location
@@ -18,13 +18,6 @@ type Config struct {
 func LoadConfig(confPath string) (Config, error){
     var conf Config
     _, err := toml.DecodeFile(confPath, &conf)
-
-    if err == nil {
-        log.Printf("Loaded configuration file '%s' successfully.", confPath)
-    } else {
-        log.Printf("Failed to load file '%s': %s", confPath, err)
-    }
-
     return conf, err
 }
 

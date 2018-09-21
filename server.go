@@ -1,6 +1,7 @@
 package mercury
 
 import(
+    "os"
     "fmt"
     "log"
     "net/http"
@@ -10,20 +11,57 @@ import(
 // Server is a type that represents a Mercury Chat Server.
 type Server struct {
     config Config
+    logFile *os.File
 }
 
 // NewServerWithConf creates a new Server structure using the
 // settings defined by the Config structure.
-func NewServerWithConf(conf Config) (Server) {
-    return Server{ conf }
+func NewServerWithConf(conf Config) (Server, error) {
+    var file  *os.File
+    var err    error
+
+    if conf.LogFile != "" {
+        file, err = os.OpenFile(conf.LogFile, os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0644)
+        if err == nil {
+            log.SetOutput(file)
+        }
+    }
+
+    return Server{
+        config:  conf,
+        logFile: file }, err
 }
 
 // NewServer creates a new Server structure, with the configuration
 // specified in a toml configuration file at location confPath.
 func NewServer(confPath string) (Server, error) {
-    conf, err := LoadConfig(confPath)
-    serv := NewServerWithConf(conf)
+    var(
+        serv Server
+        conf Config
+        err  error
+        e1   error
+        e2   error
+    )
+
+    conf, e1 = LoadConfig(confPath)
+    serv, e2 = NewServerWithConf(conf)
+
+    if e1 != nil {
+        err = e1
+    } else {
+        err = e2
+    }
+
     return serv, err
+}
+
+// Closes resources allocated by the server
+func (serv Server) Close() (e error) {
+    log.Println("Shutting down server.")
+    if serv.logFile != nil {
+        e = serv.logFile.Close()
+    }
+    return e
 }
 
 // Config returns a copy of the underlying Config structure for a

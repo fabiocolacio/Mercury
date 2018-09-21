@@ -5,20 +5,11 @@ import(
     "log"
     "net/http"
     "strings"
-    "github.com/BurntSushi/toml"
 )
 
 // Server is a type that represents a Mercury Chat Server.
 type Server struct {
     config Config
-}
-
-// Config contains configuration data for use by Server.
-type Config struct {
-    HttpAddr  string
-    HttpsAddr string
-    CertFile  string
-    KeyFile   string
 }
 
 // NewServerWithConf creates a new Server structure using the
@@ -33,21 +24,6 @@ func NewServer(confPath string) (Server, error) {
     conf, err := LoadConfig(confPath)
     serv := NewServerWithConf(conf)
     return serv, err
-}
-
-// LoadConfig loads a toml-formatted configuration file at the location
-// confPath, and returns a new Config structure to represent it.
-func LoadConfig(confPath string) (Config, error){
-    var conf Config
-    _, err := toml.DecodeFile(confPath, &conf)
-
-    if err == nil {
-        log.Printf("Loaded configuration file '%s' successfully.", confPath)
-    } else {
-        log.Printf("Failed to load file '%s': %s", confPath, err)
-    }
-
-    return conf, err
 }
 
 // Config returns a copy of the underlying Config structure for a

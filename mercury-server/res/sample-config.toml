@@ -7,3 +7,6 @@ HttpsAddr = "0.0.0.0:443"
 # to your SSL certificate and key respectively
 CertFile = "server.crt"
 KeyFile = "server.key"
+
+# (Optional) A file to log messages to instead of logging to stdout
+LogFile = "/usr/local/share/com.github.fabiocolacio.mercury-server/mercury.log"

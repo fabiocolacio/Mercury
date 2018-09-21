@@ -40,6 +40,10 @@ In order to run the server, you must first write a configuration file in the ``t
 * KeyFile
   * The absolute path to your server's private key.
   * For information about acquiring a key, see [the wiki](https://github.com/fabiocolacio/Mercury/wiki/Acquiring-an-SSL-Certificate).
+* LogFile (Optional)
+  * The absolute path to a log file to maintain
+  * If this is not set, the server logs to stdout, which can be redirected as you please
+  * The file will be appended to if it already exists
 
 You should save your configuration file to ``/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml``.
 

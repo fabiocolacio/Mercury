@@ -33,7 +33,7 @@ func main() {
 
     // Handle these signals so that the server can cleanly exit before closing the program
     sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-	<-sig
+    signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+    <-sig
 }
 

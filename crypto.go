@@ -50,23 +50,38 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
     // Decode the key data
     pemData, _ := pem.Decode(key)
     rsaKey, err := x509.ParsePKIXPublicKey(pemData.Bytes)
+    if err != nil {
+        return nil, err
+    }
 
     // Make a random AES key
     aesKey := make([]byte, 32)
     _, err = rand.Read(aesKey)
+    if err != nil {
+        return nil, err
+    }
 
     // Make a random HMAC key
     hmacKey := make([]byte, 32)
     _, err = rand.Read(hmacKey)
+    if err != nil {
+        return nil, err
+    }
 
     // Create an AES structure with our key
     block, err := aes.NewCipher(aesKey)
+    if err != nil {
+        return nil, err
+    }
 
     // Create a buffer for the ciphertext
     ciphertext := make([]byte, aes.BlockSize + len(plaintext))
 
     iv := ciphertext[:aes.BlockSize]
-    io.ReadFull(rand.Reader, iv)
+    _, err = io.ReadFull(rand.Reader, iv)
+    if err != nil {
+        return nil, err
+    }
 
     // Encrypt the message with a CBC encrypter
     encrypter := cipher.NewCBCEncrypter(block, iv)
@@ -88,6 +103,9 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
         rsaKey.(*rsa.PublicKey),
         keys,
         []byte("message"))
+    if err != nil {
+        return nil, err
+    }
 
     // Encode as JSON object
     message := JSONMessage{
@@ -96,6 +114,9 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
         Msg: ciphertext,
     }
     jsonMessage, err := json.MarshalIndent(message, "", "\t")
+    if err != nil {
+        return nil, err
+    }
 
     return jsonMessage, err
 }

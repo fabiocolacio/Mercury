@@ -41,7 +41,11 @@ type JSONMessage struct {
 // key is the recipient's public key.
 // plaintext is the message to encrypt
 func Encrypt(key, plaintext []byte) ([]byte, error) {
-    // TODO: Add padding the the message if necessary
+    // Create padding if message isn't a multiple of 16
+    if offset := len(plaintext) % aes.BlockSize; offset != 0 {
+        padding := make([]byte, aes.BlockSize - offset)
+        plaintext = append(plaintext, padding...)
+    }
 
     // Decode the key data
     pemData, _ := pem.Decode(key)
@@ -69,7 +73,7 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
     encrypter.CryptBlocks(ciphertext[aes.BlockSize:], plaintext)
 
     // Create an HMAC tag
-    var tag []byte
+    tag := make([]byte, 0, 32)
     tag = hmac.New(sha256.New, hmacKey).Sum(tag)
 
     // Concatenate AES and HMAC keys

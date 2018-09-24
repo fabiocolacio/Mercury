@@ -2,6 +2,8 @@ package mercury
 
 import(
     "io"
+    "errors"
+    "bytes"
     "crypto/rsa"
     "crypto/aes"
     "crypto/hmac"
@@ -17,6 +19,12 @@ type JSONMessage struct {
     Key []byte
     Tag []byte
     Msg []byte
+}
+
+var rsaTag []byte
+
+func init() {
+    rsaTag = []byte("message")
 }
 
 // Encrypt encrypts a message and returns a JSON object.
@@ -102,7 +110,7 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
         rand.Reader,
         rsaKey.(*rsa.PublicKey),
         keys,
-        []byte("message"))
+        rsaTag)
     if err != nil {
         return nil, err
     }
@@ -113,12 +121,12 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
         Tag: tag,
         Msg: ciphertext,
     }
-    jsonMessage, err := json.MarshalIndent(message, "", "\t")
+    jsonMessage, err := json.Marshal(message)
     if err != nil {
         return nil, err
     }
 
-    return jsonMessage, err
+    return jsonMessage, nil
 }
 
 // Decrypt decrypts a message encrypted with Encrypt
@@ -132,9 +140,55 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
 //
 // key is your private key.
 // json is the JSON-encoded message produced by Encrypt
-/*
-func Decrypt(key, json []byte) ([]byte, error) {
+func Decrypt(key, jsonData []byte) ([]byte, error) {
+    // Decode the JSON message
+    var message JSONMessage
+    err := json.Unmarshal(jsonData, &message)
+    if err != nil {
+        return nil, err
+    }
 
+    // Decode the RSA key data
+    pemData, _ := pem.Decode(key)
+    rsaKey, err := x509.ParsePKCS1PrivateKey(pemData.Bytes)
+    if err != nil {
+        return nil, err
+    }
+
+    // Decrypt the keys
+    message.Key, err = rsa.DecryptOAEP(
+        sha256.New(),
+        rand.Reader,
+        rsaKey,
+        message.Key,
+        rsaTag)
+    if err != nil {
+        return nil, err
+    }
+
+    // Extract AES and HMAC keys
+    aesKey := message.Key[:32]
+    hmacKey := message.Key[32:]
+
+    // Verify HMAC tag with HMAC key
+    tag := make([]byte, 0, 32)
+    tag = hmac.New(sha256.New, hmacKey).Sum(tag)
+    if bytes.Compare(tag, message.Tag) != 0 {
+        return nil, errors.New("HMAC tags don't match.")
+    }
+
+    // Create AES structure with AES key
+    block, err := aes.NewCipher(aesKey)
+    if err != nil {
+        return nil, err
+    }
+
+    // Decrypt the message with AES key
+    iv := message.Msg[:aes.BlockSize]
+    message.Msg = message.Msg[aes.BlockSize:]
+    decrypter := cipher.NewCBCDecrypter(block, iv)
+    decrypter.CryptBlocks(message.Msg, message.Msg)
+
+    return message.Msg, nil
 }
-*/
 

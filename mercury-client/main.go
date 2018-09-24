@@ -28,11 +28,21 @@ func main() {
     keyData, _ := ioutil.ReadFile(keyFile)
 
     if decrypt {
-        // TODO: Decrypt the JSON message into plaintext
+        // Decrypt the JSON message into plaintext
+        plaintext, err := mercury.Decrypt(keyData, []byte(message))
+        if err == nil {
+            fmt.Println(string(plaintext))
+        } else {
+            fmt.Println(err)
+        }
     } else {
         // Encrypt the message into JSON format
-        json, _ := mercury.Encrypt(keyData, []byte(message))
-        fmt.Println(string(json))
+        json, err := mercury.Encrypt(keyData, []byte(message))
+        if err == nil {
+            fmt.Println(string(json))
+        } else {
+            fmt.Println(err)
+        }
     }
 }
 

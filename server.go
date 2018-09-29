@@ -5,21 +5,25 @@ import(
     "fmt"
     "log"
     "net/http"
+    "crypto/tls"
     "strings"
 )
 
 // Server is a type that represents a Mercury Chat Server.
 type Server struct {
-    config Config
-    logFile *os.File
+    httpsServer *http.Server
+    config       Config
+    logFile     *os.File
 }
 
 // NewServerWithConf creates a new Server structure using the
 // settings defined by the Config structure.
-func NewServerWithConf(conf Config) (Server, error) {
-    var file  *os.File
-    var err    error
+func NewServerWithConf(conf Config) (*Server, error) {
+    var server  *Server
+    var file    *os.File
+    var err      error
 
+    // Set the log file as specified in the config
     if conf.LogFile != "" {
         file, err = os.OpenFile(conf.LogFile, os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0644)
         if err == nil {
@@ -27,20 +31,50 @@ func NewServerWithConf(conf Config) (Server, error) {
         }
     }
 
-    return Server{
+    // Set default http and https address if none specified in config
+    if conf.HttpAddr == "" {
+        conf.HttpAddr = DefaultHttpAddr
+    }
+    if conf.HttpsAddr ==  "" {
+        conf.HttpsAddr = DefaultHttpsAddr
+    }
+
+    // TLS configuration
+    tlsConf := &tls.Config{
+        MinVersion: tls.VersionTLS12,
+        PreferServerCipherSuites: true,
+        CipherSuites: []uint16{
+            tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+            tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+        },
+    }
+
+    // Create a custom https server with our TLS config
+    httpsServer := &http.Server{
+        Addr: conf.HttpsAddr,
+        TLSConfig: tlsConf,
+    }
+
+    server = &Server {
+        httpsServer: httpsServer,
         config:  conf,
-        logFile: file }, err
+        logFile: file,
+    }
+
+    server.httpsServer.Handler = http.Handler(server)
+
+    return server, err
 }
 
 // NewServer creates a new Server structure, with the configuration
 // specified in a toml configuration file at location confPath.
-func NewServer(confPath string) (Server, error) {
+func NewServer(confPath string) (*Server, error) {
     var(
-        serv Server
-        conf Config
-        err  error
-        e1   error
-        e2   error
+        serv *Server
+        conf  Config
+        err   error
+        e1    error
+        e2    error
     )
 
     conf, e1 = LoadConfig(confPath)
@@ -56,7 +90,7 @@ func NewServer(confPath string) (Server, error) {
 }
 
 // Closes resources allocated by the server
-func (serv Server) Close() (e error) {
+func (serv *Server) Close() (e error) {
     log.Println("Shutting down server.")
     if serv.logFile != nil {
         e = serv.logFile.Close()
@@ -66,7 +100,7 @@ func (serv Server) Close() (e error) {
 
 // Config returns a copy of the underlying Config structure for a
 // particular Server instance.
-func (serv Server) Config() Config {
+func (serv *Server) Config() Config {
     return serv.config
 }
 
@@ -75,7 +109,7 @@ func (serv Server) Config() Config {
 // This is a blocking function, and should be started as a goroutine if it needs
 // to run in the background. If it fails to bind one of the sockets, it will return
 // with an error.
-func (serv Server) ListenAndServe() error {
+func (serv *Server) ListenAndServe() error {
     conf := serv.config
     e := make(chan error)
 
@@ -89,7 +123,7 @@ func (serv Server) ListenAndServe() error {
         e <- http.ListenAndServe(conf.HttpAddr, http.Handler(serv))
     }()
     go func() {
-        e <- http.ListenAndServeTLS(conf.HttpsAddr, conf.CertFile, conf.KeyFile, http.Handler(serv))
+        e <- serv.httpsServer.ListenAndServeTLS(conf.CertFile, conf.KeyFile)
     }()
 
     // Block execution until one of the functions returns with a critical error.
@@ -106,7 +140,7 @@ func (serv Server) ListenAndServe() error {
 
 // ServeHTTP generates an HTTP response to an HTTP request. See the go
 // http.Handler interface for more information.
-func (serv Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     // Redirect Non-HTTPS requests to HTTPS
     if req.TLS == nil {
         host := strings.Split(req.Host, ":")[0]
@@ -120,6 +154,7 @@ func (serv Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     }
 
     log.Printf("Handling client '%s'", req.RemoteAddr)
+    res.Header().Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     res.Write([]byte("<h1>Hello World!</h1>"))
 }
 

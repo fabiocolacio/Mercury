@@ -13,6 +13,9 @@ type Config struct {
     LogFile   string
 }
 
+const DefaultHttpAddr string = "0.0.0.0:80"
+const DefaultHttpsAddr string = "0.0.0.0:443"
+
 // LoadConfig loads a toml-formatted configuration file at the location
 // confPath, and returns a new Config structure to represent it.
 func LoadConfig(confPath string) (Config, error){

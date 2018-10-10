@@ -27,6 +27,28 @@ func init() {
     rsaTag = []byte("message")
 }
 
+// PadPKCS7 adds necessary padding to a slice according to PKCS7 as
+// defined in RFC 2315. Padded bytes are given the value k - (l mod k),
+// where k is the size of one block, and l is the length of the plaintext
+// message.
+//
+// plaintext is a slice containing the plaintext message to pad.
+// k defines the size of a block.
+//
+// The plaintext slice is appended, and the new slice is returned
+func PadPKCS7(plaintext []byte, k int) []byte {
+    offset := len(plaintext) % k
+    padSize := byte(k - offset)
+
+    padding := make([]byte, padSize)
+
+    for i := 0; i < len(padding); i++ {
+        padding[i] = padSize
+    }
+
+    return append(plaintext, padding...)
+}
+
 // Encrypt encrypts a message and returns a JSON object.
 //
 // The algorithm is as follows:
@@ -50,10 +72,7 @@ func init() {
 // plaintext is the message to encrypt
 func Encrypt(key, plaintext []byte) ([]byte, error) {
     // Create padding if message isn't a multiple of 16
-    if offset := len(plaintext) % aes.BlockSize; offset != 0 {
-        padding := make([]byte, aes.BlockSize - offset)
-        plaintext = append(plaintext, padding...)
-    }
+    plaintext = PadPKCS7(plaintext, aes.BlockSize)
 
     // Decode the key data
     pemData, _ := pem.Decode(key)
@@ -189,6 +208,9 @@ func Decrypt(key, jsonData []byte) ([]byte, error) {
     decrypter := cipher.NewCBCDecrypter(block, iv)
     decrypter.CryptBlocks(message.Msg, message.Msg)
 
-    return message.Msg, nil
+    messageEnd := len(message.Msg) - int(message.Msg[len(message.Msg) - 1])
+    msg := message.Msg[:messageEnd]
+
+    return msg, nil
 }
 

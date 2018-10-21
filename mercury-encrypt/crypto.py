@@ -11,7 +11,7 @@ AES_BLOCKSIZE = 16
 AES_KEYSIZE = 32
 HMAC_KEYSIZE = 32
 
-def encrypt(plaintext, pubkey):
+def encrypt(plaintext, keydata):
     """
     Encrypts and encapsulates a plaintext message into a JSON object.
 
@@ -36,11 +36,14 @@ def encrypt(plaintext, pubkey):
 
     Args:
         plaintext (str): The message to encrypt
-        pubkey (str): The pem-encoded data for an RSA public key
+        keydata (str): The pem-encoded data for an RSA public key
 
     Returns:
         str: A string representation of the encrypted message encapsulated in a JSON object.
     """
+    
+    # Decode pem-encoded public key
+    pubkey = serialization.load_pem_public_key(keydata, backend=default_backend())
 
     # Pad the message with PKCS7
     padder = padding.PKCS7(AES_BLOCKSIZE * 8).padder()
@@ -79,7 +82,7 @@ def encrypt(plaintext, pubkey):
 
     return json.dumps(out)
 
-def decrypt(ciphertext, privkey):
+def decrypt(ciphertext, keydata):
     """
     This function decrypts and decodes a JSON-encoded message that has been
     encrypted with the matching encrypt() function.
@@ -95,7 +98,7 @@ def decrypt(ciphertext, privkey):
 
     Args:
         ciphertext (str): The JSON-encoded message to decrypt
-        privkey (str): The pem-encoded data for an RSA private key
+        keydata (str): The pem-encoded data for an RSA private key
 
     Returns:
         str: The decrypted message as a string
@@ -103,7 +106,10 @@ def decrypt(ciphertext, privkey):
     Raises:
         InvalidSignature: The HMAC tag provided by the JSON object did not match ours.
     """
-    
+
+    # Decode pem-encoded RSA private key
+    privkey = serialization.load_pem_private_key(keydata, password=None, backend=default_backend())
+
     # Decode the base64 encoded JSON object values
     struct = json.loads(ciphertext)
     encrypted_keys = struct["Key"].decode("base64")
@@ -147,20 +153,12 @@ if __name__ == "__main__":
     plaintext = sys.argv[1]
     keypath = sys.argv[2]
     mode = sys.argv[3]
+    keyfile = open(keypath, "rb")
+    keydata = keyfile.read() 
+    keyfile.close()
 
     if mode == "d":
-        with open(keypath, "rb") as key_file:
-            key = serialization.load_pem_private_key(
-                key_file.read(),
-                password=None,
-                backend=default_backend())
-
-            print(decrypt(plaintext, key))
+        print(decrypt(plaintext, keydata))
     else:
-        with open(keypath, "rb") as key_file:
-            key = serialization.load_pem_public_key(
-                key_file.read(),
-                backend=default_backend())
-
-            print(encrypt(plaintext, key))
-                
+        print(encrypt(plaintext, keydata))
+ 

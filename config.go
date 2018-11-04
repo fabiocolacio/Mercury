@@ -11,6 +11,9 @@ type Config struct {
     CertFile  string
     KeyFile   string
     LogFile   string
+    SQLUser   string
+    SQLPass   string
+    SQLDb     string
 }
 
 const DefaultHttpAddr string = "0.0.0.0:80"

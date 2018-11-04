@@ -6,14 +6,20 @@ import(
     "log"
     "net/http"
     "crypto/tls"
+    "crypto/rand"
     "strings"
+    "encoding/json"
+    "database/sql"
+    _ "github.com/go-sql-driver/mysql"
 )
 
 // Server is a type that represents a Mercury Chat Server.
 type Server struct {
-    httpsServer *http.Server
-    config       Config
-    logFile     *os.File
+    httpsServer     *http.Server
+    config           Config
+    logFile         *os.File
+    macKey      [256]byte
+    db              *sql.DB
 }
 
 // NewServerWithConf creates a new Server structure using the
@@ -43,9 +49,7 @@ func NewServerWithConf(conf Config) (*Server, error) {
     tlsConf := &tls.Config{
         MinVersion: tls.VersionTLS12,
         PreferServerCipherSuites: true,
-        CipherSuites: []uint16{
-            tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-            tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+        CipherSuites: []uint16{ tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
             tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
             tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
         },
@@ -57,11 +61,20 @@ func NewServerWithConf(conf Config) (*Server, error) {
         TLSConfig: tlsConf,
     }
 
+    dataSource := fmt.Sprintf("%s:%s@/%s", conf.SQLUser, conf.SQLPass, conf.SQLDb)
+    db, err := sql.Open("mysql", dataSource)
+    if err != nil {
+        return nil, err
+    }
+
     server = &Server {
         httpsServer: httpsServer,
         config:  conf,
         logFile: file,
+        db: db,
     }
+
+    rand.Read(server.macKey[:])
 
     server.httpsServer.Handler = http.Handler(server)
 
@@ -143,13 +156,13 @@ func (serv *Server) ListenAndServe() error {
 // ServeHTTP generates an HTTP response to an HTTP request. See the go
 // http.Handler interface for more information.
 func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+    host := strings.Split(req.Host, ":")[0]
+    port := strings.Split(serv.config.HttpsAddr, ":")[1]
+    path := req.URL.Path
+
     // Redirect Non-HTTPS requests to HTTPS
     if req.TLS == nil {
-        host := strings.Split(req.Host, ":")[0]
-        port := strings.Split(serv.config.HttpsAddr, ":")[1]
-        path := req.URL.Path
         dest := fmt.Sprintf("https://%s:%s%s", host, port, path)
-
         log.Printf("Redirecting HTTP client '%s' to %s", req.RemoteAddr, dest)
         http.Redirect(res, req, dest, http.StatusTemporaryRedirect)
         return
@@ -157,6 +170,50 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
     log.Printf("Handling client '%s'", req.RemoteAddr)
     res.Header().Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    res.Write([]byte("<h1>Hello World!</h1>"))
+    switch path {
+    case "/register":
+        serv.register(res, req)
+    default:
+        res.Write([]byte("<h1>Hello World!</h1>"))
+    }
+}
+
+func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
+    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+    if req.ContentLength > 0 {
+        var(
+            creds  Credentials
+            row   *sql.Row
+            query  string
+            err    error
+        )
+
+        body := make([]byte, req.ContentLength)
+        if read, err :=  req.Body.Read(body); err != nil && int64(read) < req.ContentLength {
+            log.Printf("Failed to read request body (%d read; %d expected): %s", read, req.ContentLength, err)
+            res.Write([]byte("ERROR: Malformed request"))
+            return
+        }
+
+        err = json.Unmarshal(body, &creds)
+        if err != nil {
+            log.Println(err)
+            res.Write([]byte("ERROR: Invalid JSON object"))
+            return
+        }
+
+        query = fmt.Sprintf("SELECT uid FROM users WHERE username = \"%s\"", creds.Username)
+        row = serv.db.QueryRow(query)
+
+        var uid int
+        if row.Scan(&uid) == sql.ErrNoRows {
+            res.Write([]byte("ERROR: Registration process not created yet!"))
+        } else {
+            errmsg := fmt.Sprintf("ERROR: User %s already exists.", creds.Username)
+            res.Write([]byte(errmsg))
+            return
+        }
+    }
 }
 

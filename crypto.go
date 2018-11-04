@@ -1,216 +1,70 @@
 package mercury
 
 import(
-    "io"
     "errors"
-    "bytes"
-    "crypto/rsa"
-    "crypto/aes"
     "crypto/hmac"
-    "crypto/cipher"
-    "crypto/x509"
-    "crypto/rand"
     "crypto/sha256"
-    "encoding/pem"
     "encoding/json"
+    "encoding/base64"
 )
 
-type JSONMessage struct {
-    Key []byte
-    Tag []byte
-    Msg []byte
+var InvalidMACError error = errors.New("Computed MAC does not match the provided MAC")
+var MalformedJWTError error = errors.New("The JWT is missing fields or corrupt")
+
+// Credentials represents a userername and password combination
+type Credentials struct {
+    Username string
+    Password string
 }
 
-var rsaTag []byte
-
-func init() {
-    rsaTag = []byte("message")
+// Session represents session data stored in a JWT.
+// Session only contains the uid of the currently logged-in user.
+type Session struct {
+    uid string
 }
 
-// PadPKCS7 adds necessary padding to a slice according to PKCS7 as
-// defined in RFC 2315. Padded bytes are given the value k - (l mod k),
-// where k is the size of one block, and l is the length of the plaintext
-// message.
-//
-// plaintext is a slice containing the plaintext message to pad.
-// k defines the size of a block.
-//
-// The plaintext slice is appended, and the new slice is returned
-func PadPKCS7(plaintext []byte, k int) []byte {
-    offset := len(plaintext) % k
-    padSize := byte(k - offset)
+// UnwrapSessionToken verifies a JWT, and returns its payload if the integrity check passes.
+// The session token's payload simply contains the uid of the currently logged in user.
+func UnwrapSessionToken(jwt, macKey []byte) (Session, error) {
+    var session Session
 
-    padding := make([]byte, padSize)
-
-    for i := 0; i < len(padding); i++ {
-        padding[i] = padSize
+    separators := make([]int, 0, 2)
+    for i := 0; i < len(jwt); i++ {
+        if jwt[i] == '.' {
+            separators = append(separators, i)
+        }
     }
 
-    return append(plaintext, padding...)
+    if len(separators) > 2 {
+        return session, MalformedJWTError
+    }
+
+    payload := jwt[separators[0]:separators[1]]
+    mac := jwt[separators[1]:]
+
+    if !ValidateMAC(jwt[:separators[1]], mac, macKey) {
+        return session, InvalidMACError
+    }
+
+    jsonPayload, err := base64.URLEncoding.DecodeString(string(payload))
+    if err != nil {
+        return session, MalformedJWTError
+    }
+
+    err = json.Unmarshal(jsonPayload, &session)
+    if err != nil {
+        return session, MalformedJWTError
+    }
+
+    return session, nil
 }
 
-// Encrypt encrypts a message and returns a JSON object.
-//
-// The algorithm is as follows:
-// 1. Generate a random AES key
-// 2. Encrypt the plaintext with the AES key
-// 3. Generate a random HMAC key
-// 4. Create an HMAC tag using the ciphertext and HMAC key
-// 5. Concatenate the AES and HMAC keys
-// 6. Encrypt the two keys with the recipient's public RSA key
-// 7. Send a JSON message to the recipient like this
-//
-// {
-//     Key: "The encrypted keys go here."
-//     Tag: "The HMAC tag goes here.",
-//     Msg: "the encrypted message here",
-// }
-//
-// The recipient can decrypt the message using Decrypt
-//
-// key is the recipient's public key.
-// plaintext is the message to encrypt
-func Encrypt(key, plaintext []byte) ([]byte, error) {
-    // Create padding if message isn't a multiple of 16
-    plaintext = PadPKCS7(plaintext, aes.BlockSize)
-
-    // Decode the key data
-    pemData, _ := pem.Decode(key)
-    rsaKey, err := x509.ParsePKIXPublicKey(pemData.Bytes)
-    if err != nil {
-        return nil, err
-    }
-
-    // Make a random AES key
-    aesKey := make([]byte, 32)
-    _, err = rand.Read(aesKey)
-    if err != nil {
-        return nil, err
-    }
-
-    // Make a random HMAC key
-    hmacKey := make([]byte, 32)
-    _, err = rand.Read(hmacKey)
-    if err != nil {
-        return nil, err
-    }
-
-    // Create an AES structure with our key
-    block, err := aes.NewCipher(aesKey)
-    if err != nil {
-        return nil, err
-    }
-
-    // Create a buffer for the ciphertext
-    ciphertext := make([]byte, aes.BlockSize + len(plaintext))
-
-    iv := ciphertext[:aes.BlockSize]
-    _, err = io.ReadFull(rand.Reader, iv)
-    if err != nil {
-        return nil, err
-    }
-
-    // Encrypt the message with a CBC encrypter
-    encrypter := cipher.NewCBCEncrypter(block, iv)
-    encrypter.CryptBlocks(ciphertext[aes.BlockSize:], plaintext)
-
-    // Create an HMAC tag
-    tag := make([]byte, 0, 32)
-    tag = hmac.New(sha256.New, hmacKey).Sum(tag)
-
-    // Concatenate AES and HMAC keys
-    keys := make([]byte, 64)
-    copy(keys, aesKey)
-    copy(keys[32:], hmacKey)
-
-    // Encrypt the keys
-    keys, err = rsa.EncryptOAEP(
-        sha256.New(),
-        rand.Reader,
-        rsaKey.(*rsa.PublicKey),
-        keys,
-        rsaTag)
-    if err != nil {
-        return nil, err
-    }
-
-    // Encode as JSON object
-    message := JSONMessage{
-        Key: keys,
-        Tag: tag,
-        Msg: ciphertext,
-    }
-    jsonMessage, err := json.Marshal(message)
-    if err != nil {
-        return nil, err
-    }
-
-    return jsonMessage, nil
-}
-
-// Decrypt decrypts a message encrypted with Encrypt
-//
-// The algorithm is as follows:
-// 1. Decrypt the keys with your private RSA key
-// 2. Extract the AES key (first 256 bits) from the keys
-// 3. Extract the HMAC key (last 256 bits) from the keys
-// 4. Run HMAC with the HMAC key, and compare the tags
-// 5. Decrypt the message with the AES key
-//
-// key is your private key.
-// json is the JSON-encoded message produced by Encrypt
-func Decrypt(key, jsonData []byte) ([]byte, error) {
-    // Decode the JSON message
-    var message JSONMessage
-    err := json.Unmarshal(jsonData, &message)
-    if err != nil {
-        return nil, err
-    }
-
-    // Decode the RSA key data
-    pemData, _ := pem.Decode(key)
-    rsaKey, err := x509.ParsePKCS1PrivateKey(pemData.Bytes)
-    if err != nil {
-        return nil, err
-    }
-
-    // Decrypt the keys
-    message.Key, err = rsa.DecryptOAEP(
-        sha256.New(),
-        rand.Reader,
-        rsaKey,
-        message.Key,
-        rsaTag)
-    if err != nil {
-        return nil, err
-    }
-
-    // Extract AES and HMAC keys
-    aesKey := message.Key[:32]
-    hmacKey := message.Key[32:]
-
-    // Verify HMAC tag with HMAC key
-    tag := make([]byte, 0, 32)
-    tag = hmac.New(sha256.New, hmacKey).Sum(tag)
-    if bytes.Compare(tag, message.Tag) != 0 {
-        return nil, errors.New("HMAC tags don't match.")
-    }
-
-    // Create AES structure with AES key
-    block, err := aes.NewCipher(aesKey)
-    if err != nil {
-        return nil, err
-    }
-
-    // Decrypt the message with AES key
-    iv := message.Msg[:aes.BlockSize]
-    message.Msg = message.Msg[aes.BlockSize:]
-    decrypter := cipher.NewCBCDecrypter(block, iv)
-    decrypter.CryptBlocks(message.Msg, message.Msg)
-
-    messageEnd := len(message.Msg) - int(message.Msg[len(message.Msg) - 1])
-    msg := message.Msg[:messageEnd]
-
-    return msg, nil
+// ValidateMAC computes a SHA256 HMAC tag for message, and compares it with messageMAC.
+// The the tags match, ValidateMAC returns true, else it returns false.
+func ValidateMAC(message, messageMAC, key []byte) bool {
+    mac := hmac.New(sha256.New, key)
+    mac.Write(message)
+    expectedMAC := mac.Sum(nil)
+    return hmac.Equal(messageMAC, expectedMAC)
 }
 

@@ -7,10 +7,12 @@ import(
     "net/http"
     "crypto/tls"
     "crypto/rand"
+    "crypto/sha256"
     "strings"
     "encoding/json"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
+    "golang.org/x/crypto/pbkdf2"
 )
 
 // Server is a type that represents a Mercury Chat Server.
@@ -185,7 +187,6 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
         var(
             creds  Credentials
             row   *sql.Row
-            query  string
             err    error
         )
 
@@ -203,12 +204,18 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
             return
         }
 
-        query = fmt.Sprintf("SELECT uid FROM users WHERE username = \"%s\"", creds.Username)
-        row = serv.db.QueryRow(query)
+        row = serv.db.QueryRow("select uid from users where username = ?;", creds.Username)
 
         var uid int
         if row.Scan(&uid) == sql.ErrNoRows {
-            res.Write([]byte("ERROR: Registration process not created yet!"))
+            salt := make([]byte, 16)
+            _, _ = rand.Read(salt)
+
+            saltedhash := pbkdf2.Key([]byte(creds.Password), salt, 250000, 32, sha256.New)
+
+            serv.db.Exec("insert into users (username, salt, saltedhash) values (?, ?, ?);", creds.Username, salt, saltedhash)
+
+            res.WriteHeader(http.StatusOK)
         } else {
             errmsg := fmt.Sprintf("ERROR: User %s already exists.", creds.Username)
             res.Write([]byte(errmsg))

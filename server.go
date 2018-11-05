@@ -8,11 +8,12 @@ import(
     "crypto/tls"
     "crypto/rand"
     "crypto/sha256"
+    "crypto/hmac"
     "strings"
     "encoding/json"
+    "encoding/base64"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
-    "golang.org/x/crypto/pbkdf2"
 )
 
 // Server is a type that represents a Mercury Chat Server.
@@ -175,6 +176,10 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     switch path {
     case "/register":
         serv.register(res, req)
+
+    case "/login":
+        serv.login(res, req)
+
     default:
         res.Write([]byte("<h1>Hello World!</h1>"))
     }
@@ -211,7 +216,7 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
             salt := make([]byte, 16)
             _, _ = rand.Read(salt)
 
-            saltedhash := pbkdf2.Key([]byte(creds.Password), salt, 250000, 32, sha256.New)
+            saltedhash := HashAndSaltPassword([]byte(creds.Password), salt)
 
             serv.db.Exec("insert into users (username, salt, saltedhash) values (?, ?, ?);", creds.Username, salt, saltedhash)
 
@@ -221,6 +226,57 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
             res.Write([]byte(errmsg))
             return
         }
+    }
+}
+
+func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
+    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+    var(
+        creds        Credentials
+        uid          int
+        salt       []byte
+        saltedhash []byte
+        err          error
+    )
+
+    body := make([]byte, req.ContentLength)
+    if read, err :=  req.Body.Read(body); err != nil && int64(read) < req.ContentLength {
+        log.Printf("Failed to read request body (%d read; %d expected): %s", read, req.ContentLength, err)
+        res.Write([]byte("ERROR: Malformed request"))
+        return
+    }
+
+    err = json.Unmarshal(body, &creds)
+    if err != nil {
+        log.Println(err)
+        res.Write([]byte("ERROR: Invalid JSON object"))
+        return
+    }
+
+    row := serv.db.QueryRow("select uid, salt, saltedhash from users where username = ?;", creds.Username)
+
+    if row.Scan(&uid, &salt, &saltedhash) == sql.ErrNoRows {
+        res.Write([]byte("ERROR: User does not exist"))
+    } else {
+        key := HashAndSaltPassword([]byte(creds.Password), salt)
+
+        if !Memcmp(key, saltedhash) {
+            res.Write([]byte("ERROR: Invalid password"))
+            return
+        }
+
+        header := base64.URLEncoding.EncodeToString([]byte("{\"alg\": \"HS256\", \"typ\": \"JWT\"}"))
+        payload := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("{\"Uid\": %d}", uid)))
+
+        mac := hmac.New(sha256.New, serv.macKey[:])
+        mac.Write([]byte(header + "." + payload))
+        tag := mac.Sum(nil)
+
+        jwt := []byte(header + "." + payload + ".")
+        jwt = append(jwt, tag...)
+
+        res.Write(jwt)
     }
 }
 

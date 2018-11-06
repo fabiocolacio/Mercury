@@ -7,11 +7,8 @@ import(
     "net/http"
     "crypto/tls"
     "crypto/rand"
-    "crypto/sha256"
-    "crypto/hmac"
     "strings"
     "encoding/json"
-    "encoding/base64"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
 )
@@ -180,9 +177,43 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     case "/login":
         serv.login(res, req)
 
+    case "/test":
+        serv.test(res, req)
+
     default:
         res.Write([]byte("<h1>Hello World!</h1>"))
     }
+}
+
+func readBody(req *http.Request) (body []byte, err error) {
+    body = make([]byte, req.ContentLength)
+
+    read, err := req.Body.Read(body);
+
+    if int64(read) == req.ContentLength {
+        err = nil
+    }
+
+    return body, err
+}
+
+func (serv *Server) test(res http.ResponseWriter, req *http.Request) {
+    body, err := readBody(req)
+
+    if err != nil {
+        log.Printf("Failed to read request body: %s", err)
+        res.WriteHeader(http.StatusUnauthorized)
+        return
+    }
+
+    _, err = UnwrapSessionToken(body, serv.macKey[:])
+    if err != nil {
+        log.Printf("Unauthorized request: %s", err)
+        res.WriteHeader(http.StatusUnauthorized)
+        return
+    }
+
+    res.WriteHeader(http.StatusOK)
 }
 
 func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
@@ -258,6 +289,7 @@ func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
 
     if row.Scan(&uid, &salt, &saltedhash) == sql.ErrNoRows {
         res.Write([]byte("ERROR: User does not exist"))
+        return
     } else {
         key := HashAndSaltPassword([]byte(creds.Password), salt)
 
@@ -266,16 +298,7 @@ func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
             return
         }
 
-        header := base64.URLEncoding.EncodeToString([]byte("{\"alg\": \"HS256\", \"typ\": \"JWT\"}"))
-        payload := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("{\"Uid\": %d}", uid)))
-
-        mac := hmac.New(sha256.New, serv.macKey[:])
-        mac.Write([]byte(header + "." + payload))
-        tag := mac.Sum(nil)
-
-        jwt := []byte(header + "." + payload + ".")
-        jwt = append(jwt, tag...)
-
+        jwt := CreateSessionToken(uid, serv.macKey[:])
         res.Write(jwt)
     }
 }

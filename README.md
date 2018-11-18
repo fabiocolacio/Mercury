@@ -1,47 +1,64 @@
-# Mercury
+# Mercury Server
 
-An end-to-end encrypted chat service.
+This is the Mercury chat server.
 
-## I'm lost... help!
+## Installing
 
-* Fret not fellow homosapien!
-* You can test the client-side encryption/decryption algorithm with the encryption-tester [here](https://github.com/fabiocolacio/Mercury/tree/master/mercury-encrypt#mercury-encrypter).
-* Instructions for setting up the server are [here](https://github.com/fabiocolacio/Mercury/tree/master/mercury-server#mercury-server).
-* The client is coming soon.
-* Other tidbits can be found at the [wiki](https://github.com/fabiocolacio/Mercury/wiki).
+First, [install golang](https://golang.org/dl/).
 
-## How to Navigate This Repository
-
-```
-root-folder: The Mercury Library
-|
---> mercury-encrypter: The code for the encryption-tester executable
-|
---> mercury-server: The code for the mercury-server executable
-|
---> mercury-client: The code for the mercury-client executable
-```
-
-Each of the sub-directories have their own ``README.md`` files with information about the setup and usage of that particular program.
-
-If you have [golang](https://golang.org/dl/) installed, you can install the individual binaries as you please to ``$GOPATH/bin`` with ``go get``:
+Then, you can compile and install the server binary with:
 
 ```sh
-# Clone the entire repository to $GOPATH/src
-go get github.com/fabiocolacio/mercury
+# Set $GOPATH, where the source and executable will be stored.
+# This can be substituted with any directory of your choosing.
+export GOPATH=~/go && mkdir $GOPATH
 
-# OR Install the server binary to $GOPATH/bin
+# Download and compile the mercury-server source code into your $GOPATH.
+# The binary can be found in $GOPATH/bin, and can be moved as you see fit.
 go get github.com/fabiocolacio/mercury/mercury-server
 
-# OR Install the client binary to $GOPATH/bin
-go get github.com/fabiocolacio/mercury/mercury-client
-
-# OR Install the encryption-tester binary to $GOPATH/bin
-go get github.com/fabiocolacio/mercury/mercury-encrypt
+# Optionally, you can run the install script, which affords you a few benefits:
+# - Installs the binary to the secure_path in /usr/local/bin
+# - Optionally creates a systemd/launchd service
+# - Interactively creates a config file for you
+cd $GOPATH/src/github.com/fabiocolacio/mercury/mercury-server
+sudo sh install.sh
 ```
 
-## Whats with the name?
+## Configuration
 
-This program is named after the [Roman God](https://en.wikipedia.org/wiki/Mercury_(mythology)) of messages and communication!
+In order to run the server, you must first write a configuration file in the ``toml`` format, specifying the following details:
 
-Evidently, he is also the patron god of thieves, so perhaps it's not the best name for a secure, end-to-end encrypted messaging platform...
+* HttpAddr
+  * The address and port to bind the HTTP server to.
+  * HTTP requests are simply redirected to the HTTPS server.
+* HttpsPort
+  * The address and port to bind the HTTPS server to.
+* CertFile
+  * The absolute path to your server's certificate.
+  * For information about acquiring a certificate, see [the wiki](https://github.com/fabiocolacio/Mercury/wiki/Acquiring-an-SSL-Certificate)
+* KeyFile
+  * The absolute path to your server's private key.
+  * For information about acquiring a key, see [the wiki](https://github.com/fabiocolacio/Mercury/wiki/Acquiring-an-SSL-Certificate).
+* LogFile (Optional)
+  * The absolute path to a log file to maintain
+  * If this is not set, the server logs to stdout, which can be redirected as you please
+  * The file will be appended to if it already exists
+
+You should save your configuration file to ``/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml``.
+
+A sample configuration file, ``sample-server.toml``, can be found in the ``res`` directory.
+
+## Usage
+
+If you placed your ``config.toml`` file in ``/usr/local/share/com.github.fabiocolacio.mercury-server/``, you can run the server by issuing the command:
+
+```
+$ mercury-server
+```
+
+To run the server with a different configuration file, run:
+
+```
+$ mercury-server -c ~/path/to/configuration/file/config.toml
+```

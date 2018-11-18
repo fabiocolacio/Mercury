@@ -2,7 +2,7 @@
 
 This is the Mercury chat server.
 
-## Installing
+## Installing (this info is out of date and will be updated soon)
 
 First, [install golang](https://golang.org/dl/).
 

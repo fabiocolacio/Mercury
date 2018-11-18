@@ -5,7 +5,7 @@ import(
     "os"
     "os/signal"
     "syscall"
-    "github.com/fabiocolacio/mercury"
+    "github.com/fabiocolacio/mercury/server"
 )
 
 var confPath string
@@ -20,16 +20,16 @@ func init() {
 func main() {
     // Creates a new server with the details from the configuration file.
     // If there was an error loading the file, the program quits.
-    server, err := mercury.NewServer(confPath)
+    serv, err := server.NewServer(confPath)
 
     // Free resources allocated by the Server after exiting main
-    defer server.Close()
+    defer serv.Close()
 
     // Exit if there was an error creating the server
-    mercury.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
+    server.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
 
     // Start handling connections
-    go server.ListenAndServe()
+    go serv.ListenAndServe()
 
     // Handle these signals so that the server can cleanly exit before closing the program
     sig := make(chan os.Signal, 1)

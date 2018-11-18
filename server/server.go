@@ -1,4 +1,4 @@
-package mercury
+package server
 
 import(
     "os"

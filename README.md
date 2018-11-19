@@ -42,9 +42,18 @@ A sample configuration file, ``sample-server.toml``, can be found in the ``res``
 
 ## Usage
 
-
-Run mercury with the following command:
+When running mercury for the first time, use the ``--init`` flag.
+This will create all necessary tables in the database.
+Use this flag with caution!
+If the tables already exist, *it will delete and reset them*.
 
 ```
-$ mercury -c ~/path/to/configuration/file/config.toml
+mercury --init
+```
+
+mercury looks for a configuration file in ``~/.config/mercury/config.toml`` by default.
+You may specify another config file with the ``--config`` flag.
+
+```
+mercury --config ~/path/to/configuration/file/config.toml
 ```

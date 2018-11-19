@@ -252,13 +252,7 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
 
         var uid int
         if row.Scan(&uid) == sql.ErrNoRows {
-            salt := make([]byte, 16)
-            _, _ = rand.Read(salt)
-
-            saltedhash := HashAndSaltPassword([]byte(creds.Password), salt)
-
-            serv.db.Exec("insert into users (username, salt, saltedhash) values (?, ?, ?);", creds.Username, salt, saltedhash)
-
+            serv.RegisterUser(creds)
             res.WriteHeader(http.StatusOK)
         } else {
             errmsg := fmt.Sprintf("ERROR: User %s already exists.", creds.Username)

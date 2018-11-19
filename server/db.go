@@ -2,7 +2,21 @@ package server
 
 import(
     "fmt"
+    "crypto/rand"
 )
+
+func (serv *Server) RegisterUser(creds Credentials) error {
+    salt := make([]byte, SaltLength)
+    rand.Read(salt)
+
+    saltedHash := HashAndSaltPassword([]byte(creds.Password), salt)
+
+    _, err := serv.db.Exec(
+        `insert into users (username, salt, saltedhash) values (?, ?, ?);`,
+        creds.Username, salt, saltedHash)
+
+    return err
+}
 
 func (serv *Server) ResetDB() (err error) {
     var query string

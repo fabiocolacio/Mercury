@@ -2,27 +2,12 @@
 
 This is the Mercury chat server.
 
-## Installing (this info is out of date and will be updated soon)
+## Installing
 
-First, [install golang](https://golang.org/dl/).
+After installing golang and a MySQL database, run the installer with this command:
 
-Then, you can compile and install the server binary with:
-
-```sh
-# Set $GOPATH, where the source and executable will be stored.
-# This can be substituted with any directory of your choosing.
-export GOPATH=~/go && mkdir $GOPATH
-
-# Download and compile the mercury-server source code into your $GOPATH.
-# The binary can be found in $GOPATH/bin, and can be moved as you see fit.
-go get github.com/fabiocolacio/mercury/mercury-server
-
-# Optionally, you can run the install script, which affords you a few benefits:
-# - Installs the binary to the secure_path in /usr/local/bin
-# - Optionally creates a systemd/launchd service
-# - Interactively creates a config file for you
-cd $GOPATH/src/github.com/fabiocolacio/mercury/mercury-server
-sudo sh install.sh
+```
+curl https://raw.githubusercontent.com/fabiocolacio/Mercury/master/install.sh -sSf | sh
 ```
 
 ## Configuration
@@ -44,6 +29,12 @@ In order to run the server, you must first write a configuration file in the ``t
   * The absolute path to a log file to maintain
   * If this is not set, the server logs to stdout, which can be redirected as you please
   * The file will be appended to if it already exists
+* SQLUser
+  * The user which will perform operations on the SQL database
+* SQLPass
+  * The password for SQLUser
+* SQLDb
+  * The SQL database that mercury will use for its tables
 
 You should save your configuration file to ``/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml``.
 

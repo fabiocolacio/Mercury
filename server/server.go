@@ -8,7 +8,6 @@ import(
     "crypto/tls"
     "crypto/rand"
     "strings"
-    "encoding/json"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
 )
@@ -180,103 +179,16 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
     switch path {
     case "/register":
-        serv.register(res, req)
+        serv.RegisterRoute(res, req)
 
     case "/login":
-        serv.login(res, req)
+        serv.LoginRoute(res, req)
 
     case "/test":
-        serv.test(res, req)
+        serv.TestRoute(res, req)
 
     default:
         res.Write([]byte("<h1>Hello World!</h1>"))
-    }
-}
-
-func readBody(req *http.Request) (body []byte, err error) {
-    body = make([]byte, req.ContentLength)
-
-    read, err := req.Body.Read(body);
-
-    if int64(read) == req.ContentLength {
-        err = nil
-    }
-
-    return body, err
-}
-
-func (serv *Server) test(res http.ResponseWriter, req *http.Request) {
-    body, err := readBody(req)
-
-    if err != nil {
-        log.Printf("Failed to read request body: %s", err)
-        res.WriteHeader(http.StatusUnauthorized)
-        return
-    }
-
-    _, err = UnwrapSessionToken(body, serv.macKey[:])
-    if err != nil {
-        log.Printf("Unauthorized request: %s", err)
-        res.WriteHeader(http.StatusUnauthorized)
-        return
-    }
-
-    res.WriteHeader(http.StatusOK)
-}
-
-func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
-    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-    if req.ContentLength > 0 {
-        var(
-            creds  Credentials
-            err    error
-        )
-
-        body, err := readBody(req)
-        if err != nil {
-            res.Write([]byte("Malformed request"))
-            return
-        }
-
-        err = json.Unmarshal(body, &creds)
-        if err != nil {
-            log.Println(err)
-            res.Write([]byte("ERROR: Invalid JSON object"))
-            return
-        }
-
-        err = serv.RegisterUser(creds)
-        if err == nil {
-            res.WriteHeader(http.StatusOK)
-        } else {
-            res.Write([]byte(err.Error()))
-        }
-    }
-}
-
-func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
-    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-    var creds Credentials
-
-    body, err := readBody(req)
-    if err != nil {
-        res.Write([]byte("Malformed request"))
-        return
-    }
-
-    err = json.Unmarshal(body, &creds)
-    if err != nil {
-        log.Println(err)
-        res.Write([]byte("ERROR: Invalid JSON object"))
-        return
-    }
-
-    jwt, err := serv.LoginUser(creds)
-    if err != nil {
-        res.Write([]byte(err.Error()))
-    } else {
-        res.Write(jwt)
     }
 }
 

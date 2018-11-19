@@ -2,6 +2,7 @@ package server
 
 import(
     "log"
+    "net/http"
 )
 
 // Memcmp returns true if the first n bytes of two slices are
@@ -37,5 +38,18 @@ func Assertf(condition bool, format string, args ...interface{}) {
     if !condition {
         log.Fatalf(format, args)
     }
+}
+
+// ReadBody reads the body of an http.Request into a []byte
+func ReadBody(req *http.Request) (body []byte, err error) {
+    body = make([]byte, req.ContentLength)
+
+    read, err := req.Body.Read(body);
+
+    if int64(read) == req.ContentLength {
+        err = nil
+    }
+
+    return body, err
 }
 

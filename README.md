@@ -4,7 +4,7 @@ This is the Mercury chat server.
 
 ## Installing
 
-After installing golang and a MySQL database, run the installer with this command:
+After installing golang and MySQL, run the installer with this command:
 
 ```
 curl https://raw.githubusercontent.com/fabiocolacio/Mercury/master/install.sh -sSf | sh
@@ -42,14 +42,9 @@ A sample configuration file, ``sample-server.toml``, can be found in the ``res``
 
 ## Usage
 
-If you placed your ``config.toml`` file in ``/usr/local/share/com.github.fabiocolacio.mercury-server/``, you can run the server by issuing the command:
+
+Run mercury with the following command:
 
 ```
-$ mercury-server
-```
-
-To run the server with a different configuration file, run:
-
-```
-$ mercury-server -c ~/path/to/configuration/file/config.toml
+$ mercury -c ~/path/to/configuration/file/config.toml
 ```

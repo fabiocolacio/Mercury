@@ -226,18 +226,15 @@ func (serv *Server) test(res http.ResponseWriter, req *http.Request) {
 
 func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
     res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
     if req.ContentLength > 0 {
         var(
             creds  Credentials
-            row   *sql.Row
             err    error
         )
 
-        body := make([]byte, req.ContentLength)
-        if read, err :=  req.Body.Read(body); err != nil && int64(read) < req.ContentLength {
-            log.Printf("Failed to read request body (%d read; %d expected): %s", read, req.ContentLength, err)
-            res.Write([]byte("ERROR: Malformed request"))
+        body, err := readBody(req)
+        if err != nil {
+            res.Write([]byte("Malformed request"))
             return
         }
 
@@ -248,16 +245,11 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
             return
         }
 
-        row = serv.db.QueryRow("select uid from users where username = ?;", creds.Username)
-
-        var uid int
-        if row.Scan(&uid) == sql.ErrNoRows {
-            serv.RegisterUser(creds)
+        err = serv.RegisterUser(creds)
+        if err == nil {
             res.WriteHeader(http.StatusOK)
         } else {
-            errmsg := fmt.Sprintf("ERROR: User %s already exists.", creds.Username)
-            res.Write([]byte(errmsg))
-            return
+            res.Write([]byte(err.Error()))
         }
     }
 }
@@ -265,18 +257,11 @@ func (serv *Server) register(res http.ResponseWriter, req *http.Request) {
 func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
     res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-    var(
-        creds        Credentials
-        uid          int
-        salt       []byte
-        saltedhash []byte
-        err          error
-    )
+    var creds Credentials
 
-    body := make([]byte, req.ContentLength)
-    if read, err :=  req.Body.Read(body); err != nil && int64(read) < req.ContentLength {
-        log.Printf("Failed to read request body (%d read; %d expected): %s", read, req.ContentLength, err)
-        res.Write([]byte("ERROR: Malformed request"))
+    body, err := readBody(req)
+    if err != nil {
+        res.Write([]byte("Malformed request"))
         return
     }
 
@@ -287,20 +272,10 @@ func (serv *Server) login(res http.ResponseWriter, req *http.Request) {
         return
     }
 
-    row := serv.db.QueryRow("select uid, salt, saltedhash from users where username = ?;", creds.Username)
-
-    if row.Scan(&uid, &salt, &saltedhash) == sql.ErrNoRows {
-        res.Write([]byte("ERROR: User does not exist"))
-        return
+    jwt, err := serv.LoginUser(creds)
+    if err != nil {
+        res.Write([]byte(err.Error()))
     } else {
-        key := HashAndSaltPassword([]byte(creds.Password), salt)
-
-        if !Memcmp(key, saltedhash) {
-            res.Write([]byte("ERROR: Invalid password"))
-            return
-        }
-
-        jwt := CreateSessionToken(uid, serv.macKey[:])
         res.Write(jwt)
     }
 }

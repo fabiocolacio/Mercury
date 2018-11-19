@@ -16,12 +16,6 @@ var(
     MalformedJWTError error = errors.New("The JWT is missing fields or corrupt")
 )
 
-// Credentials represents a userername and password combination
-type Credentials struct {
-    Username string
-    Password string
-}
-
 // Session represents session data stored in a JWT.
 // Session only contains the uid of the currently logged-in user.
 type Session struct {

@@ -4,7 +4,7 @@ This is the Mercury chat server.
 
 ## Installing
 
-After installing golang and a MySQL database, run the installer with this command:
+After installing golang and MySQL, run the installer with this command:
 
 ```
 curl https://raw.githubusercontent.com/fabiocolacio/Mercury/master/install.sh -sSf | sh

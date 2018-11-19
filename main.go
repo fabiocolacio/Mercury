@@ -1,6 +1,7 @@
 package main
 
 import(
+    "fmt"
     "flag"
     "os"
     "os/signal"
@@ -8,12 +9,15 @@ import(
     "github.com/fabiocolacio/mercury/server"
 )
 
-var confPath string
+var(
+    confPath string
+    flagInit bool
+)
 
 func init() {
-    flag.StringVar(&confPath, "c",
-        "/usr/local/share/com.github.fabiocolacio.mercury-server/config.toml",
-        "The configuration file to load.")
+    dconf := fmt.Sprintf("%s/.config/mercury/config.toml", os.Getenv("HOME"))
+    flag.StringVar(&confPath, "config", dconf, "The configuration file to load.")
+    flag.BoolVar(&flagInit, "init", false, "Creates necessary database tables if they do not exist")
     flag.Parse()
 }
 
@@ -27,6 +31,12 @@ func main() {
 
     // Exit if there was an error creating the server
     server.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
+
+
+    if flagInit {
+        err = serv.ResetDB()
+        server.Assertf(err == nil, "Failed to initialize database: %s", err)
+    }
 
     // Start handling connections
     go serv.ListenAndServe()

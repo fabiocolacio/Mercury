@@ -107,9 +107,15 @@ func NewServer(confPath string) (*Server, error) {
 // Closes resources allocated by the server
 func (serv *Server) Close() (e error) {
     log.Println("Shutting down server.")
+
     if serv.logFile != nil {
         e = serv.logFile.Close()
     }
+
+    if serv.db != nil {
+        e = serv.db.Close()
+    }
+
     return e
 }
 
@@ -168,8 +174,10 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
         return
     }
 
-    log.Printf("Handling client '%s'", req.RemoteAddr)
     res.Header().Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
+    log.Printf("Handling client '%s'", req.RemoteAddr)
+
     switch path {
     case "/register":
         serv.register(res, req)

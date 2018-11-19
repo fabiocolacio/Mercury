@@ -22,6 +22,7 @@ func Memcmp(a, b []byte) bool {
 
     return true
 }
+
 // Assert checks if condition is false, and exits the program if it is.
 // Assert logs message to the standard logger before exiting if the
 // assertion fails.

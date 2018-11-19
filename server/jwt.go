@@ -4,7 +4,6 @@ import(
     "fmt"
     "log"
     "errors"
-    "hash"
     "crypto/hmac"
     "crypto/sha256"
     "encoding/json"
@@ -15,10 +14,6 @@ import(
 var(
     InvalidMACError error = errors.New("Computed MAC does not match the provided MAC")
     MalformedJWTError error = errors.New("The JWT is missing fields or corrupt")
-
-    KeyHashAlgo func() hash.Hash = sha256.New
-    KeyHashIterations int = 250000
-    KeyHashLength int = 32
 )
 
 // Credentials represents a userername and password combination

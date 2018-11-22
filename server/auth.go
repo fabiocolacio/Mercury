@@ -3,6 +3,7 @@ package server
 import(
     "database/sql"
     "crypto/rand"
+    "crypto/subtle"
     "errors"
 )
 
@@ -36,7 +37,7 @@ func (serv *Server) LoginUser(creds Credentials) (jwt []byte, err error) {
     } else {
         key := HashAndSaltPassword([]byte(creds.Password), salt)
 
-        if !Memcmp(key, saltedHash) {
+        if subtle.ConstantTimeCompare(key, saltedHash) != 1{
             err = ErrInvalidCredentials
             return
         }
@@ -71,4 +72,3 @@ func (serv *Server) RegisterUser(creds Credentials) (err error) {
 
     return
 }
-

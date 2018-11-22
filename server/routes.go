@@ -6,6 +6,32 @@ import(
     "log"
 )
 
+func (serv *Server) GetRoute(res http.ResponseWriter, req *http.Request) {
+    sess, err := serv.VerifyUser(req)
+    if err != nil {
+        log.Printf("Unauthorized request: %s", err)
+        res.WriteHeader(http.StatusUnauthorized)
+        return
+    }
+
+    query := req.URL.Query()
+    peer := query.Get("peer")
+    since := query.Get("since")
+
+    if len(peer) < 1 {
+        res.Write([]byte("No peer specified"))
+        return
+    }
+
+    messages, err := serv.MsgFetch(peer, sess.Uid, since)
+    if err != nil {
+        res.Write([]byte("Failed to fetch messages"))
+        return
+    }
+
+    res.Write(messages)
+}
+
 func (serv *Server) SendRoute(res http.ResponseWriter, req *http.Request) {
     sess, err := serv.VerifyUser(req)
     if err != nil {

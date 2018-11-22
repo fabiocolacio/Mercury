@@ -4,6 +4,7 @@ import(
     "fmt"
     "database/sql"
     "errors"
+    "bytes"
 )
 
 var(
@@ -49,6 +50,72 @@ func (serv *Server) ResetDB() (err error) {
     err = serv.InitDB()
 
     return
+}
+
+func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, error) {
+    var(
+        data []byte
+        myName string
+        yourUid int
+    )
+
+    row := serv.db.QueryRow(`select uid from users where username = ?`, yourName)
+    err := row.Scan(&yourUid)
+    if err == sql.ErrNoRows {
+        err = ErrNoSuchUser
+        return data, err
+    }
+
+    row = serv.db.QueryRow(`select username from users where uid = ?`, myUid)
+    err = row.Scan(&myName)
+    if err == sql.ErrNoRows {
+        err = ErrNoSuchUser
+        return data, err
+    }
+
+    rows, err := serv.db.Query(
+        `SELECT users.username, messages.timesent, messages.message
+        FROM messages
+        INNER JOIN users
+        ON messages.sender = users.uid
+        WHERE
+        (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)`,
+        myUid, yourUid, yourUid, myUid)
+    if err != nil {
+        return data, err
+    }
+
+    buffer := new(bytes.Buffer)
+
+    fmt.Fprint(buffer, "[")
+    firstMsg := true
+    for rows.Next() {
+        if firstMsg {
+            firstMsg = false
+        } else {
+            fmt.Fprint(buffer, ",")
+        }
+
+        var(
+            username string
+            timestamp string
+            message []byte
+        )
+
+        if err = rows.Scan(&username, &timestamp, &message); err != nil {
+            return data, err
+        }
+
+        fmt.Fprint(buffer, "{")
+        fmt.Fprintf(buffer, `"Username": "%s",`, username)
+        fmt.Fprintf(buffer, `"Timestamp": "%s",`, timestamp)
+        fmt.Fprintf(buffer, `"Message": %s`, string(message))
+        fmt.Fprint(buffer, "}")
+    }
+    fmt.Fprint(buffer, "]")
+    data = buffer.Bytes()
+
+    return data, err
 }
 
 func (serv *Server) SendMsg(message []byte, receiver string, sender int) (err error) {

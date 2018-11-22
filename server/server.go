@@ -190,6 +190,9 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     case "/send":
         serv.SendRoute(res, req)
 
+    case "/get":
+        serv.GetRoute(res, req)
+
     default:
         res.Write([]byte("<h1>Hello World!</h1>"))
     }

@@ -6,6 +6,31 @@ import(
     "log"
 )
 
+func (serv *Server) SendRoute(res http.ResponseWriter, req *http.Request) {
+    sess, err := serv.VerifyUser(req)
+    if err != nil {
+        log.Printf("Unauthorized request: %s", err)
+        res.WriteHeader(http.StatusUnauthorized)
+        return
+    }
+
+    recipient := req.URL.Query().Get("to")
+    if len(recipient) < 1 {
+        res.Write([]byte("No recipient specified"))
+        return
+    }
+
+    message, _ := ReadBody(req)
+
+    err = serv.SendMsg(message, recipient, sess.Uid)
+    if err != nil {
+        res.Write([]byte(err.Error()))
+        return
+    }
+
+    res.WriteHeader(http.StatusOK)
+}
+
 func (serv *Server) TestRoute(res http.ResponseWriter, req *http.Request) {
     _, err := serv.VerifyUser(req)
     if err != nil {

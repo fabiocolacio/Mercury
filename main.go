@@ -12,12 +12,14 @@ import(
 var(
     confPath string
     flagInit bool
+    flagReset bool
 )
 
 func init() {
     dconf := fmt.Sprintf("%s/.config/mercury/config.toml", os.Getenv("HOME"))
     flag.StringVar(&confPath, "config", dconf, "The configuration file to load.")
-    flag.BoolVar(&flagInit, "init", false, "Creates necessary database tables if they do not exist")
+    flag.BoolVar(&flagInit, "init", false, "Creates necessary database tables if they do not exist.")
+    flag.BoolVar(&flagReset, "reset", false, "Drops and recreates database tables.")
     flag.Parse()
 }
 
@@ -34,8 +36,13 @@ func main() {
 
 
     if flagInit {
-        err = serv.ResetDB()
+        err = serv.InitDB()
         server.Assertf(err == nil, "Failed to initialize database: %s", err)
+    }
+
+    if flagReset {
+        err = serv.ResetDB()
+        server.Assertf(err == nil, "Failed to reset database: %s", err)
     }
 
     // Start handling connections
@@ -46,4 +53,3 @@ func main() {
     signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
     <-sig
 }
-

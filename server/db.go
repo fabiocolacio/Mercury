@@ -29,6 +29,7 @@ func (serv *Server) InitDB() (err error) {
     _, err = serv.db.Exec(`create table messages(
         sender int,
         recipient int,
+        timesent timestamp,
         message blob);`)
 
     return
@@ -51,18 +52,19 @@ func (serv *Server) ResetDB() (err error) {
 }
 
 func (serv *Server) SendMsg(message []byte, receiver string, sender int) (err error) {
-    row := serv.db.QueryRow(`select * from users where username = ?`, receiver)
+    row := serv.db.QueryRow(`select uid from users where username = ?`, receiver)
 
     var recipient int
-    if row.Scan(&recipient) == sql.ErrNoRows {
+    err = row.Scan(&recipient)
+    if err == sql.ErrNoRows {
         err = ErrNoSuchUser
         return
     }
 
     _, err = serv.db.Exec(`insert into messages
-            (sender, recipient, message)
-            values (?, ?, ?)`,
-            recipient, sender, message)
+            (sender, recipient, message, timesent)
+            values (?, ?, ?, NOW())`,
+            sender, recipient, message)
     if err != nil {
         err = ErrMsgUnsent
     }

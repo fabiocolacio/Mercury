@@ -109,4 +109,3 @@ func ValidateMAC(message, messageMAC, key []byte) bool {
     expectedMAC := mac.Sum(nil)
     return Memcmp(messageMAC, expectedMAC)
 }
-

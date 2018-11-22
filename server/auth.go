@@ -5,14 +5,15 @@ import(
     "crypto/rand"
     "crypto/subtle"
     "errors"
+    "net/http"
 )
 
 var(
     ErrInvalidCredentials error = errors.New("Invalid username or password.")
     ErrUsernameTaken error = errors.New("Username already taken.")
     ErrRegistrationFailed error = errors.New("Failed to register user.")
+    ErrNotLoggedIn error = errors.New("Please log in.")
 )
-
 
 // Credentials represents a userername and password combination
 type Credentials struct {
@@ -71,4 +72,13 @@ func (serv *Server) RegisterUser(creds Credentials) (err error) {
     }
 
     return
+}
+
+// VerifyUser extracts the Session data from a request.
+func (serv *Server) VerifyUser(req *http.Request) (Session, error) {
+    jwt := []byte(req.Header.Get("Session"))
+    if len(jwt) <= 0 {
+        return Session{}, ErrNotLoggedIn
+    }
+    return UnwrapSessionToken(jwt, serv.macKey[:])
 }

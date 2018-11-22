@@ -7,15 +7,7 @@ import(
 )
 
 func (serv *Server) TestRoute(res http.ResponseWriter, req *http.Request) {
-    body, err := ReadBody(req)
-
-    if err != nil {
-        log.Printf("Failed to read request body: %s", err)
-        res.WriteHeader(http.StatusUnauthorized)
-        return
-    }
-
-    _, err = UnwrapSessionToken(body, serv.macKey[:])
+    _, err := serv.VerifyUser(req)
     if err != nil {
         log.Printf("Unauthorized request: %s", err)
         res.WriteHeader(http.StatusUnauthorized)

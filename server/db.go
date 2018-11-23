@@ -126,7 +126,7 @@ func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, 
         fmt.Fprint(buffer, "{")
         fmt.Fprintf(buffer, `"Username": "%s",`, username)
         fmt.Fprintf(buffer, `"Timestamp": "%s",`, timestamp)
-        fmt.Fprintf(buffer, `"Message": %s`, string(message))
+        fmt.Fprintf(buffer, `"Message": "%s"`, string(message))
         fmt.Fprint(buffer, "}")
     }
     fmt.Fprint(buffer, "]")

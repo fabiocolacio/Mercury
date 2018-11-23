@@ -105,6 +105,7 @@ func (serv *Server) LoginRoute(res http.ResponseWriter, req *http.Request) {
 
     body, err := ReadBody(req)
     if err != nil {
+        res.WriteHeader(400)
         res.Write([]byte("Malformed request"))
         return
     }
@@ -112,12 +113,14 @@ func (serv *Server) LoginRoute(res http.ResponseWriter, req *http.Request) {
     err = json.Unmarshal(body, &creds)
     if err != nil {
         log.Println(err)
+        res.WriteHeader(400)
         res.Write([]byte("ERROR: Invalid JSON object"))
         return
     }
 
     jwt, err := serv.LoginUser(creds)
     if err != nil {
+        res.WriteHeader(400)
         res.Write([]byte(err.Error()))
     } else {
         res.Write(jwt)

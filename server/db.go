@@ -32,11 +32,28 @@ func (serv *Server) InitDB() (err error) {
         recipient int,
         timesent timestamp,
         message blob);`)
+    if err != nil {
+        return
+    }
+
+    _, err = serv.db.Exec(`create table devices(
+        did int primary key auto_increment,
+        owner int,
+        public_key blob,
+        foreign key (owner) references users(uid));`)
+    if err != nil {
+        return
+    }
 
     return
 }
 
 func (serv *Server) ResetDB() (err error) {
+    _, err = serv.db.Exec(`drop table if exists devices;`)
+    if err != nil {
+        return
+    }
+
     _, err = serv.db.Exec(`drop table if exists users;`)
     if err != nil {
         return

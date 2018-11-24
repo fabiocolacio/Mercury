@@ -4,7 +4,27 @@ import(
     "net/http"
     "encoding/json"
     "log"
+    "fmt"
 )
+
+func (serv *Server) LookupRoute(res http.ResponseWriter, req *http.Request) {
+    query := req.URL.Query()
+    user := query.Get("user")
+    if len(user) < 1 {
+        res.WriteHeader(400)
+        res.Write([]byte("No user specified"))
+        return
+    }
+
+    uid, err := serv.LookupUser(user)
+    if err != nil {
+        res.WriteHeader(400)
+        res.Write([]byte(err.Error()))
+        return
+    }
+
+    fmt.Fprint(res, uid)
+}
 
 func (serv *Server) GetRoute(res http.ResponseWriter, req *http.Request) {
     sess, err := serv.VerifyUser(req)

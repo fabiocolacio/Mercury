@@ -135,6 +135,15 @@ func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, 
     return data, err
 }
 
+func (serv *Server) LookupUser(user string) (uid int, err error) {
+    row := serv.db.QueryRow(`select uid from users where username = ?`, user)
+    err = row.Scan(&uid)
+    if err == sql.ErrNoRows {
+        err = ErrNoSuchUser
+    }
+    return
+}
+
 func (serv *Server) SendMsg(message []byte, receiver string, sender int) (err error) {
     row := serv.db.QueryRow(`select uid from users where username = ?`, receiver)
 

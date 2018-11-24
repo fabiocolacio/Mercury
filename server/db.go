@@ -71,6 +71,7 @@ func (serv *Server) ResetDB() (err error) {
 
 func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, error) {
     var(
+        rows *sql.Rows
         data []byte
         myName string
         yourUid int
@@ -90,14 +91,26 @@ func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, 
         return data, err
     }
 
-    rows, err := serv.db.Query(
-        `SELECT users.username, messages.timesent, messages.message
-        FROM messages
-        INNER JOIN users
-        ON messages.sender = users.uid
-        WHERE
-        (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)`,
-        myUid, yourUid, yourUid, myUid)
+    if len(since) < 1 {
+        rows, err = serv.db.Query(
+            `SELECT users.username, messages.timesent, messages.message
+            FROM messages
+            INNER JOIN users
+            ON messages.sender = users.uid
+            WHERE
+            (sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)`,
+            myUid, yourUid, yourUid, myUid)
+    } else {
+        rows, err = serv.db.Query(
+            `SELECT users.username, messages.timesent, messages.message
+            FROM messages
+            INNER JOIN users
+            ON messages.sender = users.uid
+            WHERE
+            ((sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)) AND
+            (timesent > ?)`,
+            myUid, yourUid, yourUid, myUid, []byte(since))
+    }
     if err != nil {
         return data, err
     }

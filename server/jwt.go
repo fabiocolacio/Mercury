@@ -8,7 +8,7 @@ import(
     "crypto/sha256"
     "encoding/json"
     "encoding/base64"
-    "golang.org/x/crypto/pbkdf2"
+    "golang.org/x/crypto/scrypt"
 )
 
 var(
@@ -28,8 +28,8 @@ type Session struct {
 // The number of iterations is defined by KeyHashIterations.
 // The hash function used is defined by KeyHashAlgo.
 // The length of the key that is created is defined by KeyHashLength.
-func HashAndSaltPassword(passwd, salt []byte) []byte {
-    return pbkdf2.Key(passwd, salt, KeyHashIterations, KeyHashLength, KeyHashAlgo)
+func HashAndSaltPassword(passwd, salt []byte) ([]byte, error) {
+    return scrypt.Key(passwd, salt, 32768, 8, 1, KeyHashLength)
 }
 
 // CreateSessionToken creates a JWT token that is sent to the client

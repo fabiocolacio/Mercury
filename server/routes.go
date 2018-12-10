@@ -31,6 +31,7 @@ func (serv *Server) GetRoute(res http.ResponseWriter, req *http.Request) {
     if err != nil {
         log.Printf("Unauthorized request: %s", err)
         res.WriteHeader(http.StatusUnauthorized)
+        res.Write([]byte("Unauthorized request"))
         return
     }
 

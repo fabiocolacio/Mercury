@@ -14,4 +14,5 @@ var(
     KeyHashLength int = 32
     SaltLength int = 16
     UsernameMaxLength = 16
+    ChallengeLength = 16
 )

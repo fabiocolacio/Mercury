@@ -36,24 +36,10 @@ func (serv *Server) InitDB() (err error) {
         return
     }
 
-    _, err = serv.db.Exec(`create table devices(
-        did int primary key auto_increment,
-        owner int,
-        public_key blob,
-        foreign key (owner) references users(uid));`)
-    if err != nil {
-        return
-    }
-
     return
 }
 
 func (serv *Server) ResetDB() (err error) {
-    _, err = serv.db.Exec(`drop table if exists devices;`)
-    if err != nil {
-        return
-    }
-
     _, err = serv.db.Exec(`drop table if exists users;`)
     if err != nil {
         return
@@ -139,7 +125,7 @@ func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, 
         fmt.Fprint(buffer, "{")
         fmt.Fprintf(buffer, `"Username": "%s",`, username)
         fmt.Fprintf(buffer, `"Timestamp": "%s",`, timestamp)
-        fmt.Fprintf(buffer, `"Message": "%s"`, string(message))
+        fmt.Fprintf(buffer, `"Message": %s`, string(message))
         fmt.Fprint(buffer, "}")
     }
     fmt.Fprint(buffer, "]")

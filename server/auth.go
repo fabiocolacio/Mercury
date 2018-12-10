@@ -46,7 +46,10 @@ func (serv *Server) LoginUser(creds Credentials) (jwt []byte, err error) {
             return nil, err
         }
 
-        jwt = CreateSessionToken(uid, serv.macKey[:])
+        jwt, err = CreateSessionToken(uid, serv.macKey[:])
+        if err != nil {
+            return nil, err
+        }
     }
 
     return

@@ -1,6 +1,6 @@
 # Mercury Server
 
-This is the Mercury chat server.
+This is the Mercury chat server. For the client, see https://github.com/fabiocolacio/Quicksilver
 
 ## Installing
 

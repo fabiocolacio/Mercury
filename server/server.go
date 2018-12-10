@@ -180,6 +180,7 @@ func (serv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
     switch path {
     case "/lookup": serv.LookupRoute(res, req)
     case "/register": serv.RegisterRoute(res, req)
+    case "/auth": serv.AuthRoute(res, req)
     case "/login": serv.LoginRoute(res, req)
     case "/test": serv.TestRoute(res, req)
     case "/send": serv.SendRoute(res, req)

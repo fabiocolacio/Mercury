@@ -5,6 +5,7 @@ import(
     "encoding/json"
     "log"
     "fmt"
+    "crypto/rand"
 )
 
 func (serv *Server) LookupRoute(res http.ResponseWriter, req *http.Request) {
@@ -31,6 +32,7 @@ func (serv *Server) GetRoute(res http.ResponseWriter, req *http.Request) {
     if err != nil {
         log.Printf("Unauthorized request: %s", err)
         res.WriteHeader(http.StatusUnauthorized)
+        res.Write([]byte("Unauthorized request"))
         return
     }
 
@@ -39,12 +41,14 @@ func (serv *Server) GetRoute(res http.ResponseWriter, req *http.Request) {
     since := query.Get("since")
 
     if len(peer) < 1 {
+        res.WriteHeader(400)
         res.Write([]byte("No peer specified"))
         return
     }
 
     messages, err := serv.MsgFetch(peer, sess.Uid, since)
     if err != nil {
+        res.WriteHeader(400)
         res.Write([]byte("Failed to fetch messages"))
         return
     }
@@ -56,20 +60,26 @@ func (serv *Server) SendRoute(res http.ResponseWriter, req *http.Request) {
     sess, err := serv.VerifyUser(req)
     if err != nil {
         log.Printf("Unauthorized request: %s", err)
+        res.WriteHeader(400)
         res.WriteHeader(http.StatusUnauthorized)
         return
     }
 
     recipient := req.URL.Query().Get("to")
     if len(recipient) < 1 {
+        res.WriteHeader(400)
         res.Write([]byte("No recipient specified"))
         return
     }
 
     message, _ := ReadBody(req)
+    if len(message) < 1 {
+        res.WriteHeader(400)
+    }
 
     err = serv.SendMsg(message, recipient, sess.Uid)
     if err != nil {
+        res.WriteHeader(400)
         res.Write([]byte(err.Error()))
         return
     }
@@ -118,31 +128,100 @@ func (serv *Server) RegisterRoute(res http.ResponseWriter, req *http.Request) {
     }
 }
 
-func (serv *Server) LoginRoute(res http.ResponseWriter, req *http.Request) {
-    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-    var creds Credentials
+func (serv *Server) AuthRoute(res http.ResponseWriter, req *http.Request) {
+    user := req.URL.Query().Get("user")
+    if len(user) < 1 {
+        res.WriteHeader(400)
+        res.Write([]byte("No user specified."))
+        return
+    }
 
     body, err := ReadBody(req)
     if err != nil {
-        res.WriteHeader(400)
-        res.Write([]byte("Malformed request"))
+        res.WriteHeader(500)
         return
     }
 
-    err = json.Unmarshal(body, &creds)
+    err = serv.ParseChallenge(user, body)
     if err != nil {
-        log.Println(err)
+        log.Println("Incorrect response")
         res.WriteHeader(400)
-        res.Write([]byte("ERROR: Invalid JSON object"))
         return
     }
 
-    jwt, err := serv.LoginUser(creds)
+    uid, err := serv.LookupUser(user)
     if err != nil {
+        log.Println("Failed to lookup user")
         res.WriteHeader(400)
-        res.Write([]byte(err.Error()))
-    } else {
-        res.Write(jwt)
+        return
     }
+
+    jwt, err := CreateSessionToken(uid, serv.macKey[:])
+    if err != nil {
+        log.Println("Failed to create session token")
+        res.WriteHeader(400)
+        return
+    }
+
+    res.Write(jwt)
+}
+
+func (serv *Server) LoginRoute(res http.ResponseWriter, req *http.Request) {
+    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+    user := req.URL.Query().Get("user")
+    if len(user) < 1 {
+        res.WriteHeader(400)
+        res.Write([]byte("No user specified."))
+    }
+
+    challenge := make([]byte, ChallengeLength)
+    _, err := rand.Read(challenge)
+    if err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    salt, err := serv.SetChallenge(user, challenge)
+    if err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    data := map[string][]byte{
+        "C": challenge,
+        "S": salt,
+    }
+
+    payload, err := json.Marshal(data)
+    if err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    res.Write(payload)
+
+    // var creds Credentials
+    // body, err := ReadBody(req)
+    // if err != nil {
+    //     res.WriteHeader(400)
+    //     res.Write([]byte("Malformed request"))
+    //     return
+    // }
+    //
+    // err = json.Unmarshal(body, &creds)
+    // if err != nil {
+    //     log.Println(err)
+    //     res.WriteHeader(400)
+    //     res.Write([]byte("ERROR: Invalid JSON object"))
+    //     return
+    // }
+    //
+    // jwt, err := serv.LoginUser(creds)
+    // if err != nil {
+    //     res.WriteHeader(400)
+    //     res.Write([]byte(err.Error()))
+    // } else {
+    //     res.Write(jwt)
+    // }
 }

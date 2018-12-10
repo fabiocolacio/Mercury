@@ -36,14 +36,20 @@ func (serv *Server) LoginUser(creds Credentials) (jwt []byte, err error) {
     if row.Scan(&uid, &salt, &saltedHash) == sql.ErrNoRows {
         err = ErrInvalidCredentials
     } else {
-        key := HashAndSaltPassword([]byte(creds.Password), salt)
+        key, err := HashAndSaltPassword([]byte(creds.Password), salt)
+        if err != nil {
+            return nil, err
+        }
 
         if subtle.ConstantTimeCompare(key, saltedHash) != 1{
             err = ErrInvalidCredentials
-            return
+            return nil, err
         }
 
-        jwt = CreateSessionToken(uid, serv.macKey[:])
+        jwt, err = CreateSessionToken(uid, serv.macKey[:])
+        if err != nil {
+            return nil, err
+        }
     }
 
     return
@@ -58,9 +64,12 @@ func (serv *Server) RegisterUser(creds Credentials) (err error) {
         salt := make([]byte, SaltLength)
         rand.Read(salt)
 
-        saltedHash := HashAndSaltPassword([]byte(creds.Password), salt)
+        saltedHash, err := HashAndSaltPassword([]byte(creds.Password), salt)
+        if err != nil {
+            return err
+        }
 
-        _, err := serv.db.Exec(
+        _, err = serv.db.Exec(
             `insert into users (username, salt, saltedhash) values (?, ?, ?);`,
             creds.Username, salt, saltedHash)
 

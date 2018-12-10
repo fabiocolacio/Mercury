@@ -3,13 +3,17 @@ package server
 import(
     "fmt"
     "database/sql"
+    "crypto/hmac"
+    "crypto/sha256"
     "errors"
     "bytes"
+    "log"
 )
 
 var(
     ErrNoSuchUser error = errors.New("No such user")
     ErrMsgUnsent error = errors.New("Failed to send message")
+    ErrInvalidResponse error = errors.New("Invalid response to challenge")
 )
 
 func (serv *Server) InitDB() (err error) {
@@ -18,10 +22,12 @@ func (serv *Server) InitDB() (err error) {
             uid int primary key auto_increment,
             username varchar(%d),
             salt binary(%d),
-            saltedhash binary(%d));`,
+            saltedhash binary(%d),
+            challenge binary(%d));`,
         UsernameMaxLength,
         SaltLength,
-        KeyHashLength)
+        KeyHashLength,
+        ChallengeLength)
     _, err = serv.db.Exec(query)
     if err != nil {
         return
@@ -36,24 +42,10 @@ func (serv *Server) InitDB() (err error) {
         return
     }
 
-    _, err = serv.db.Exec(`create table devices(
-        did int primary key auto_increment,
-        owner int,
-        public_key blob,
-        foreign key (owner) references users(uid));`)
-    if err != nil {
-        return
-    }
-
     return
 }
 
 func (serv *Server) ResetDB() (err error) {
-    _, err = serv.db.Exec(`drop table if exists devices;`)
-    if err != nil {
-        return
-    }
-
     _, err = serv.db.Exec(`drop table if exists users;`)
     if err != nil {
         return
@@ -67,6 +59,39 @@ func (serv *Server) ResetDB() (err error) {
     err = serv.InitDB()
 
     return
+}
+
+func (serv *Server) ParseChallenge(user string, response []byte) error {
+    var saltedHash []byte
+    var challenge []byte
+
+    row := serv.db.QueryRow("SELECT saltedhash, challenge FROM users WHERE username = ?", user)
+
+    err := row.Scan(&saltedHash, &challenge)
+    if err != nil {
+        log.Println(user)
+        return err
+    }
+
+    mac := hmac.New(sha256.New, saltedHash)
+    mac.Write(challenge)
+    expectedResponse := mac.Sum(nil)
+    if Memcmp(expectedResponse, response) {
+        return nil
+    }
+
+    return ErrInvalidResponse
+}
+
+func (serv *Server) SetChallenge(user string, challenge []byte) ([]byte, error) {
+    _, err := serv.db.Exec(`UPDATE users SET challenge = ? WHERE username = ?`, challenge, user)
+    if err != nil {
+        return nil, err
+    }
+    var salt []byte
+    row := serv.db.QueryRow(`SELECT salt FROM users WHERE username = ?`, user)
+    err = row.Scan(&salt)
+    return salt, err
 }
 
 func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, error) {
@@ -139,7 +164,7 @@ func (serv *Server) MsgFetch(yourName string, myUid int, since string) ([]byte, 
         fmt.Fprint(buffer, "{")
         fmt.Fprintf(buffer, `"Username": "%s",`, username)
         fmt.Fprintf(buffer, `"Timestamp": "%s",`, timestamp)
-        fmt.Fprintf(buffer, `"Message": "%s"`, string(message))
+        fmt.Fprintf(buffer, `"Message": %s`, string(message))
         fmt.Fprint(buffer, "}")
     }
     fmt.Fprint(buffer, "]")

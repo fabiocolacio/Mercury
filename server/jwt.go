@@ -1,25 +1,27 @@
 package server
 
 import(
-    "fmt"
     "log"
     "errors"
+    "time"
     "crypto/hmac"
     "crypto/sha256"
     "encoding/json"
     "encoding/base64"
-    "golang.org/x/crypto/pbkdf2"
+    "golang.org/x/crypto/scrypt"
 )
 
 var(
     InvalidMACError error = errors.New("Computed MAC does not match the provided MAC")
     MalformedJWTError error = errors.New("The JWT is missing fields or corrupt")
+    ErrSessionExpired error = errors.New("Session expired.")
 )
 
 // Session represents session data stored in a JWT.
 // Session only contains the uid of the currently logged-in user.
 type Session struct {
-    Uid int
+    Uid       int
+    Expires []byte
 }
 
 // HashAndSaltPassword takes a password and salt, and creates a hash
@@ -28,15 +30,31 @@ type Session struct {
 // The number of iterations is defined by KeyHashIterations.
 // The hash function used is defined by KeyHashAlgo.
 // The length of the key that is created is defined by KeyHashLength.
-func HashAndSaltPassword(passwd, salt []byte) []byte {
-    return pbkdf2.Key(passwd, salt, KeyHashIterations, KeyHashLength, KeyHashAlgo)
+func HashAndSaltPassword(passwd, salt []byte) ([]byte, error) {
+    return scrypt.Key(passwd, salt, 32768, 8, 1, KeyHashLength)
 }
 
 // CreateSessionToken creates a JWT token that is sent to the client
 // at login to represent a session.
-func CreateSessionToken(uid int, macKey []byte) []byte {
+func CreateSessionToken(uid int, macKey []byte) ([]byte, error) {
     header := base64.URLEncoding.EncodeToString([]byte("{\"alg\": \"HS256\", \"typ\": \"JWT\"}"))
-    payload := base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("{\"Uid\": %d}", uid)))
+
+    expireTime, err := time.Now().Add(30 * time.Minute).MarshalText()
+    if err != nil {
+        return nil, err
+    }
+
+    session := Session{
+        Uid: uid,
+        Expires: expireTime,
+    }
+
+    jsonPayload, err := json.Marshal(session)
+    if err != nil {
+        return nil, err
+    }
+
+    payload := base64.URLEncoding.EncodeToString(jsonPayload)
     jwt := []byte(header + "." + payload)
 
     mac := hmac.New(sha256.New, macKey)
@@ -50,7 +68,7 @@ func CreateSessionToken(uid int, macKey []byte) []byte {
     jwt = append(jwt, '.')
     jwt = append(jwt, encodedTag...)
 
-    return jwt
+    return jwt, nil
 }
 
 // UnwrapSessionToken verifies a JWT, and returns its payload if the integrity check passes.
@@ -96,6 +114,16 @@ func UnwrapSessionToken(jwt, macKey []byte) (Session, error) {
     if err != nil {
         log.Println("Failed to unmarshal json:", err)
         return session, MalformedJWTError
+    }
+
+    expirey := new(time.Time)
+    err = expirey.UnmarshalText(session.Expires)
+    if err != nil {
+        return session, err
+    }
+
+    if time.Now().After(*expirey) {
+        return session, ErrSessionExpired
     }
 
     return session, nil

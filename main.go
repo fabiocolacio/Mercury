@@ -1,55 +1,160 @@
 package main
 
 import(
+    "github.com/go-chi/chi"
+    "github.com/go-chi/chi/middleware"
+    "github.com/go-chi/jwtauth"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson"
+    "context"
+    "strings"
     "fmt"
+    "encoding/json"
+    "net/http"
+    "io/ioutil"
+    "crypto/tls"
+    "crypto/rand"
     "flag"
-    "os"
-    "os/signal"
-    "syscall"
-    "github.com/fabiocolacio/mercury/server"
+    "log"
 )
 
 var(
-    confPath string
-    flagInit bool
-    flagReset bool
+    mongoDB      *mongo.Database  // Our database
+    hmacKey     []byte            // HMAC Key used to sign messages
+    tokenAuth    *jwtauth.JWTAuth // JWT authenticator
+    certFile      string          // Path to SSL certificate file
+    privKeyFile   string          // Path to SSL private key file
+    httpAddr      string          // Address and port to listen for HTTP requests from
+    httpsAddr     string          // Address and port to listen for HTTPS requests from 
 )
 
-func init() {
-    dconf := fmt.Sprintf("%s/.config/mercury/config.toml", os.Getenv("HOME"))
-    flag.StringVar(&confPath, "config", dconf, "The configuration file to load.")
-    flag.BoolVar(&flagInit, "init", false, "Creates necessary database tables if they do not exist.")
-    flag.BoolVar(&flagReset, "reset", false, "Drops and recreates database tables.")
-    flag.Parse()
-}
+const(
+    HMAC_KEY_SIZE  int = 32        // 256-bit HMAC key
+)
 
 func main() {
-    // Creates a new server with the details from the configuration file.
-    // If there was an error loading the file, the program quits.
-    serv, err := server.NewServer(confPath)
+    // Parse command-line arguments
+    flag.StringVar(&certFile, "cert", "", "The location of your ssl certificate")
+    flag.StringVar(&privKeyFile, "privkey", "", "The location of your ssl private key")
+    flag.StringVar(&httpAddr, "http-addr", ":8080", "The address from which to listen to http requests")
+    flag.StringVar(&httpsAddr, "https-addr", ":9090", "The address from which to listen to https requests")
+    flag.Parse()
 
-    // Free resources allocated by the Server after exiting main
-    defer serv.Close()
-
-    // Exit if there was an error creating the server
-    server.Assertf(err == nil, "Failed to load configuration file '%s': %s", confPath, err)
-
-
-    if flagInit {
-        err = serv.InitDB()
-        server.Assertf(err == nil, "Failed to initialize database: %s", err)
+    if certFile == "" {
+        log.Fatal("No certificate specified")
+    }
+    if privKeyFile == "" {
+        log.Fatal("No private key specified")
     }
 
-    if flagReset {
-        err = serv.ResetDB()
-        server.Assertf(err == nil, "Failed to reset database: %s", err)
+    // Create a random HMAC key
+    hmacKey = make([]byte, HMAC_KEY_SIZE)
+    if _, err := rand.Read(hmacKey); err != nil {
+        log.Fatal(err)
     }
 
-    // Start handling connections
-    go serv.ListenAndServe()
+    // Create a JWT authenticator
+    tokenAuth = jwtauth.New("H256", hmacKey, hmacKey)
 
-    // Handle these signals so that the server can cleanly exit before closing the program
-    sig := make(chan os.Signal, 1)
-    signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-    <-sig
+    // Create a connection to MongoDB
+    mongoCon, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    err = mongoCon.Connect(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    mongoDB = mongoCon.Database("mercury")
+
+    mongoDB.Collection("users").Indexes().CreateOne(
+        context.Background(),
+        mongo.IndexModel{ bson.M{ "user": 1 }, options.Index().SetUnique(true)},
+        options.CreateIndexes(),
+    )
+
+    router := chi.NewRouter()
+
+    router.Use(middleware.Logger)
+    router.Use(middleware.SetHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
+
+    router.Post("/register", registerRoute)
+
+    // Protected Routes
+    router.Group(func(prouter chi.Router) {
+        prouter.Use(jwtauth.Verifier(tokenAuth))
+        prouter.Use(jwtauth.Authenticator)
+
+    })
+
+    httpsServer := &http.Server {
+        Addr: httpsAddr,
+        Handler: router,
+        TLSConfig: &tls.Config {
+            MinVersion: tls.VersionTLS12,
+            PreferServerCipherSuites: true,
+            CipherSuites: []uint16 {
+                tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+                tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+                tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            },
+        },
+    }
+
+    e := make(chan error)
+
+    // Listen for HTTP requests concurrently
+    go func() {
+        e <- http.ListenAndServe(httpAddr, http.HandlerFunc(tlsRedirectHandler))
+    }()
+
+    // Listen for HTTPS requests concurrently
+    go func() {
+        e <- httpsServer.ListenAndServeTLS(certFile, privKeyFile)
+    }()
+
+    // Wait for one of the servers to fail or close
+    log.Println(<-e)
 }
+
+func tlsRedirectHandler(res http.ResponseWriter, req *http.Request) {
+    host := strings.Split(req.Host, ":")[0]
+    port := strings.Split(httpsAddr, ":")[1]
+    path := req.URL.Path
+
+    dest := fmt.Sprintf("https://%s:%s%s", host, port, path)
+    log.Printf("Redirecting HTTP client '%s' to %s", req.RemoteAddr, dest)
+}
+
+func registerRoute(res http.ResponseWriter, req *http.Request) {
+    body, err := ioutil.ReadAll(req.Body)
+    if err != nil {
+        res.WriteHeader(500)
+        log.Println(err)
+        return
+    }
+    
+    var creds Credentials
+    if err := json.Unmarshal(body, &creds); err != nil {
+        res.WriteHeader(400)
+        log.Println(err)
+        return
+    }
+
+    user, err := NewUserFromCreds(creds)
+    if err != nil {
+        res.WriteHeader(500)
+        log.Println(err)
+    }
+
+    mongoDB.Collection("users").InsertOne(
+        context.Background(),
+        user,
+        options.InsertOne(),
+    )
+}
+

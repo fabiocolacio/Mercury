@@ -9,6 +9,7 @@ import(
     "go.mongodb.org/mongo-driver/bson"
     "context"
     "strings"
+    "time"
     "fmt"
     "encoding/json"
     "net/http"
@@ -63,18 +64,22 @@ func main() {
         log.Fatal(err)
     }
 
-    err = mongoCon.Connect(context.Background())
+    ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+    err = mongoCon.Connect(ctx)
     if err != nil {
         log.Fatal(err)
     }
+    cancel()
 
     mongoDB = mongoCon.Database("mercury")
 
+    ctx, cancel = context.WithTimeout(context.Background(), 15 * time.Second)
     mongoDB.Collection("users").Indexes().CreateOne(
         context.Background(),
         mongo.IndexModel{ bson.M{ "user": 1 }, options.Index().SetUnique(true)},
         options.CreateIndexes(),
     )
+    cancel()
 
     router := chi.NewRouter()
 
@@ -151,10 +156,8 @@ func registerRoute(res http.ResponseWriter, req *http.Request) {
         log.Println(err)
     }
 
-    mongoDB.Collection("users").InsertOne(
-        context.Background(),
-        user,
-        options.InsertOne(),
-    )
+    ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+    defer cancel()
+    mongoDB.Collection("users").InsertOne(ctx, user, options.InsertOne())
 }
 

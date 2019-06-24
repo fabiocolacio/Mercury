@@ -87,6 +87,8 @@ func main() {
     router.Use(middleware.SetHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
 
     router.Post("/register", registerRoute)
+    router.Get("/login", requestChallengeRoute)
+    router.Post("/login", loginRoute)
 
     // Protected Routes
     router.Group(func(prouter chi.Router) {
@@ -159,5 +161,43 @@ func registerRoute(res http.ResponseWriter, req *http.Request) {
     ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
     defer cancel()
     mongoDB.Collection("users").InsertOne(ctx, user, options.InsertOne())
+}
+
+
+func requestChallengeRoute(res http.ResponseWriter, req *http.Request) {
+    username := req.URL.Query().Get("user")
+
+    ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+    defer cancel()
+    result := mongoDB.Collection("users").FindOne(ctx, map[string]string{ "user": username }, options.FindOne())
+
+    if result == nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    var user User
+    if err := result.Decode(&user); err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    challenge := make([]byte, 16)
+    if _, err := rand.Read(challenge); err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    payload, err := json.Marshal(struct{ C, S []byte }{ challenge, user.Salt })
+    if err != nil {
+        res.WriteHeader(500)
+        fmt.Println(err)
+        return
+    }
+
+    res.Write(payload)
+}
+
+func loginRoute(res http.ResponseWriter, req *http.Request) {
 }
 

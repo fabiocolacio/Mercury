@@ -16,6 +16,8 @@ import(
     "io/ioutil"
     "crypto/tls"
     "crypto/rand"
+    "crypto/hmac"
+    "crypto/sha256"
     "flag"
     "log"
 )
@@ -195,7 +197,20 @@ func requestChallengeRoute(res http.ResponseWriter, req *http.Request) {
         return
     }
 
-    res.Write(payload)
+
+    mac := hmac.New(sha256.New, user.SHash)
+    mac.Write(challenge)
+    user.Chal = mac.Sum(nil)
+
+    ctx, cancel = context.WithTimeout(context.Background(), 10 * time.Second)
+    defer cancel()
+    if _, err = mongoDB.Collection("users").UpdateOne(ctx, map[string]string{ "user": username }, map[string]interface{}{ "$set": user }, options.Update()); err != nil {
+        res.WriteHeader(500)
+        fmt.Println(err)
+        return
+    } else {
+        res.Write(payload)
+    }
 }
 
 func loginRoute(res http.ResponseWriter, req *http.Request) {

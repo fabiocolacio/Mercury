@@ -10,9 +10,10 @@ const(
 )
 
 type User struct {
-    User   string `json: "user"  bson: "user"`
-    Salt  []byte  `json: "salt"  bson: "salt"`
-    SHash []byte  `json: "shash" bson: "shash"`
+    User  string `json: "user"  bson: "user"`
+    Salt  []byte `json: "salt"  bson: "salt"`
+    SHash []byte `json: "shash" bson: "shash"`
+    Chal  []byte `json: "chal"  bson: "chal"`
 }
 
 func NewUserFromCreds(creds Credentials) (User, error) {

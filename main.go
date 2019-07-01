@@ -172,7 +172,6 @@ func requestChallengeRoute(res http.ResponseWriter, req *http.Request) {
     ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
     defer cancel()
     result := mongoDB.Collection("users").FindOne(ctx, map[string]string{ "user": username }, options.FindOne())
-
     if result == nil {
         res.WriteHeader(500)
         return
@@ -214,5 +213,33 @@ func requestChallengeRoute(res http.ResponseWriter, req *http.Request) {
 }
 
 func loginRoute(res http.ResponseWriter, req *http.Request) {
+    username := req.URL.Query().Get("user")
+
+    ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+    defer cancel()
+    result := mongoDB.Collection("users").FindOne(ctx, map[string]string{ "user": username }, options.FindOne())
+    if result == nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    var user User
+    if err := result.Decode(&user); err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    payload, err := ioutil.ReadAll(req.Body)
+    if err != nil {
+        res.WriteHeader(500)
+        return
+    }
+
+    if !hmac.Equal(user.Chal, payload) {
+        res.WriteHeader(500)
+        return
+    }
+
+    res.WriteHeader(200)
 }
 

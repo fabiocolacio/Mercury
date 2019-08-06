@@ -21,6 +21,7 @@ This is the structure of a message:
 ```
 Sid: The id of the sender's DH parameters used for this message
 Rid: The id of the receiver's DH parameters used for this message
+ IV: The initialization vector used for AES-CBC encryption of encrypted fields
 Nxt: The sender's newly created public DH parameter for use on the next message (encrypted)
 Msg: The encrypted message
 Key: The encrypted HMAC key

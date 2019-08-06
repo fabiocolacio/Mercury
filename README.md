@@ -34,6 +34,7 @@ Tag: HMAC integrity tag - HMAC(Nxt || Msg, Decrypted HMAC key))
 * Voice/video support
 * Blockchain-based trustless keyserver integration (removes need to manually coordinate initial key-exchange)
 * Docker image
+* Better (mobile?) client
 
 ## Installing
 

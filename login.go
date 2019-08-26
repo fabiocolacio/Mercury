@@ -1,5 +1,5 @@
 package main
-
+/*
 import(
     "net/http"
     "context"
@@ -95,4 +95,4 @@ func loginRoute(res http.ResponseWriter, req *http.Request) {
 
     res.WriteHeader(200)
 }
-
+*/

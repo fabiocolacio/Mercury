@@ -1,6 +1,7 @@
 defmodule Mercury.Router.Protected do
   use Plug.Router
 
+  plug Mercury.Auth.Pipeline
   plug :match
   plug :dispatch
 

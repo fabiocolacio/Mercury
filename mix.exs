@@ -14,15 +14,16 @@ defmodule Mercury.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Mercury.Application, []},
       extra_applications: [:logger],
-      mod: {Mercury.Application, []}
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      plug_cowboy: "~> 2.0"
+      plug_cowboy: "~> 2.0",
+      guardian: "~> 2.0"
     ]
   end
 end

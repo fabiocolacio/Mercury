@@ -29,6 +29,14 @@ use Mix.Config
 #
 #     import_config "#{Mix.env()}.exs"
 
+config :mercury, ecto_repos: [Mercury.Repo]
+
+config :mercury, Mercury.Repo,
+  database: "mercury",
+  username: "mercury",
+  password: "mercury",
+  hostname: "localhost"
+
 config :mercury, Mercury.Token,
   issuer: "Mercury",
   secret_key: "your-key-here"

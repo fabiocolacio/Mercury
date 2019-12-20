@@ -4,6 +4,8 @@ defmodule Mercury.Application do
 
   def start(_type, _args) do
     children = [
+      Mercury.Repo,
+
       {
         Plug.Cowboy,
         scheme: :http,

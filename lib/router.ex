@@ -1,10 +1,14 @@
 defmodule Mercury.Router do
   use Plug.Router
 
+  plug Plug.Parsers, parsers: [:json],
+                     json_decoder: Jason
+  
   plug :match
   plug :dispatch
 
   post "/register" do
+    IO.inspect(conn)
     send_resp(conn, 200, "/register")
   end
 
